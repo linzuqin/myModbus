@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "mymodbus.h": "c",
+        "mb_config.h": "c",
+        "mb_crc.h": "c",
+        "mb_master.h": "c",
+        "mb_slave.h": "c",
+        "mb.h": "c",
+        "mb_check.h": "c"
+    }
+}
