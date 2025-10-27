@@ -16,7 +16,7 @@ static void mb_m_clean(mb_dev_t *mb_dev)
     memset(mb_dev->rx_buffer , 0 , MB_MAX_SIZE);
 }
 
-static mb_err_t mb_m_build_request(mb_dev_t *mb_dev, mb_func_code_t func_code, uint16_t start_addr , uint16_t size , uint8_t *request , uint16_t request_size)
+static mb_err_t mb_m_build_request(mb_dev_t *mb_dev, mb_func_code_t func_code, uint16_t start_addr , uint16_t size , uint16_t* val ,uint8_t *request , uint16_t request_size)
 {
     uint16_t request_len = 0;
     mb_err_t result = MB_OK;
@@ -55,12 +55,16 @@ static mb_err_t mb_m_build_request(mb_dev_t *mb_dev, mb_func_code_t func_code, u
                 { 
                     result = MB_ERR_SIZE;
                 }
+                else if(val == NULL)
+                {
+                    result = MB_ERR_SIZE;
+                }
                 else
                 {
                     request[2] = (uint8_t)(start_addr >> 8);   // 地址高位
                     request[3] = (uint8_t)(start_addr & 0xFF); // 地址低位
                     
-                    if(mb_dev->mb_coil_reg[start_addr]) 
+                    if(*val) 
                     {
                         request[4] = 0xFF;
                         request[5] = 0x00;
@@ -79,12 +83,17 @@ static mb_err_t mb_m_build_request(mb_dev_t *mb_dev, mb_func_code_t func_code, u
                 { 
                     result = MB_ERR_SIZE;
                 }
+                else if(val == NULL)
+                {
+                    result = MB_ERR_SIZE;
+                }
                 else
                 {
+                    uint16_t reg_val = *val;
                     request[2] = (uint8_t)(start_addr >> 8);   // 地址高位
                     request[3] = (uint8_t)(start_addr & 0xFF); // 地址低位
-                    request[4] = (uint8_t)(mb_dev->mb_hold_reg[start_addr] >> 8);  
-                    request[5] = (uint8_t)(mb_dev->mb_hold_reg[start_addr]  & 0xFF); 
+                    request[4] = (uint8_t)(reg_val >> 8);  
+                    request[5] = (uint8_t)(reg_val  & 0xFF); 
                 }
                 break;
             }
@@ -97,8 +106,13 @@ static mb_err_t mb_m_build_request(mb_dev_t *mb_dev, mb_func_code_t func_code, u
                 { 
                     result = MB_ERR_SIZE;
                 }
+                else if(val == NULL)
+                {
+                    result = MB_ERR_SIZE;
+                }
                 else
                 {
+                    uint16_t coil_value = 0;
                     request[2] = (uint8_t)(start_addr >> 8);   // 地址高位
                     request[3] = (uint8_t)(start_addr & 0xFF); // 地址低位
                     request[4] = (uint8_t)(size >> 8);     // 数量高位
@@ -107,7 +121,8 @@ static mb_err_t mb_m_build_request(mb_dev_t *mb_dev, mb_func_code_t func_code, u
                     
                     // 填充线圈状态数据
                     for(uint16_t i = 0; i < size; i++) {
-                        if(mb_dev->mb_coil_reg[start_addr + i]) {
+                        coil_value = val[i];
+                        if(coil_value) {
                             uint8_t byte_index = i / 8;
                             uint8_t bit_index = i % 8;
                             request[7 + byte_index] |= (1 << bit_index);
@@ -125,8 +140,13 @@ static mb_err_t mb_m_build_request(mb_dev_t *mb_dev, mb_func_code_t func_code, u
                 { 
                     result = MB_ERR_SIZE;
                 }
+                else if(val == NULL)
+                {
+                    result = MB_ERR_SIZE;
+                }
                 else
                 {
+                    uint16_t reg_value = 0;
                     request[2] = (uint8_t)(start_addr >> 8);   // 地址高位
                     request[3] = (uint8_t)(start_addr & 0xFF); // 地址低位
                     request[4] = (uint8_t)(size >> 8);     // 数量高位
@@ -135,7 +155,7 @@ static mb_err_t mb_m_build_request(mb_dev_t *mb_dev, mb_func_code_t func_code, u
                     
                     // 填充寄存器数据
                     for(uint16_t i = 0; i < size; i++) {
-                        uint16_t reg_value = mb_dev->mb_hold_reg[start_addr + i];
+                        reg_value = val[i];
                         request[7 + i * 2] = (uint8_t)((reg_value >> 8) & 0xFF);  // 高位
                         request[8 + i * 2] = (uint8_t)(reg_value & 0xFF);         // 低位
                     }
@@ -260,7 +280,7 @@ static uint16_t mb_m_get_request_size(mb_func_code_t func_code, uint16_t quantit
     return size;
 }
 
-static mb_err_t mb_m_send_request(mb_dev_t *mb_dev, mb_func_code_t func_code, uint16_t start_addr, uint16_t quantity)
+static mb_err_t mb_m_send_request(mb_dev_t *mb_dev, mb_func_code_t func_code, uint16_t start_addr, uint16_t quantity , uint16_t *val)
 {
     mb_err_t result = MB_OK;
     uint16_t size = mb_m_get_request_size(func_code, quantity);
@@ -277,7 +297,7 @@ static mb_err_t mb_m_send_request(mb_dev_t *mb_dev, mb_func_code_t func_code, ui
     }
     else
     {
-        result = mb_m_build_request(mb_dev, func_code, start_addr, quantity, request_buf , size);
+        result = mb_m_build_request(mb_dev, func_code, start_addr, quantity, val , request_buf , size);
         if(result == MB_OK)
         {
             mb_dev->rx_size = 0;
@@ -300,7 +320,7 @@ static mb_err_t mb_m_send_request(mb_dev_t *mb_dev, mb_func_code_t func_code, ui
 
 mb_err_t mb_m_coil_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity)
 {
-    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_READ_COILS, start_addr, quantity);
+    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_READ_COILS, start_addr, quantity , NULL);
     
     if(result == MB_OK)
     {
@@ -326,23 +346,23 @@ mb_err_t mb_m_coil_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantit
     return result;
 }
 
-mb_err_t mb_m_coil_set(mb_dev_t *mb_dev , uint16_t start_addr)
+mb_err_t mb_m_coil_set(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t value)
 {
-    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_WRITE_SINGLE_COIL, start_addr, 1);
+    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_WRITE_SINGLE_COIL, start_addr, 1 , &value);
     mb_m_clean(mb_dev);
     return result;
 }
 
-mb_err_t mb_m_coils_set(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity)
+mb_err_t mb_m_coils_set(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity , uint16_t *value)
 {
-    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_WRITE_MULTIPLE_COILS, start_addr, quantity);
+    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_WRITE_MULTIPLE_COILS, start_addr, quantity , value);
     mb_m_clean(mb_dev);
     return result;
 }
 
 mb_err_t mb_m_disc_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity)
 {
-    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_READ_DISCRETE, start_addr, quantity);
+    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_READ_DISCRETE, start_addr, quantity , NULL);
     
     if(result == MB_OK)
     {
@@ -370,7 +390,7 @@ mb_err_t mb_m_disc_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantit
 
 mb_err_t mb_m_hold_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity) 
 {
-    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_READ_HOLDING, start_addr, quantity);
+    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_READ_HOLDING, start_addr, quantity , NULL);
     if(result == MB_OK)
     {
         uint8_t byte_count = mb_dev->rx_buffer[2];
@@ -394,23 +414,23 @@ mb_err_t mb_m_hold_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantit
     return result;
 }
 
-mb_err_t mb_m_hold_set(mb_dev_t *mb_dev , uint16_t start_addr)
+mb_err_t mb_m_hold_set(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t value)
 {
-    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_WRITE_SINGLE_REGISTER, start_addr, 1);
+    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_WRITE_SINGLE_REGISTER, start_addr, 1 , &value);
     mb_m_clean(mb_dev);
     return result;
 }
 
-mb_err_t mb_m_holds_set(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity)
+mb_err_t mb_m_holds_set(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity , uint16_t *value)
 {
-    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_WRITE_MULTIPLE_REGISTERS, start_addr, quantity);
+    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_WRITE_MULTIPLE_REGISTERS, start_addr, quantity , value);
     mb_m_clean(mb_dev);
     return result;
 }
 
 mb_err_t mb_m_input_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity)
 {
-    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_READ_INPUT, start_addr, quantity);
+    mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_READ_INPUT, start_addr, quantity , NULL);
     
     if(result == MB_OK)
     {

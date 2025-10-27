@@ -206,12 +206,20 @@ static uint16_t mb_s_get_response_size(mb_func_code_t func_code, uint16_t quanti
 static mb_err_t mb_s_coil_parse(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t val)
 {
     mb_dev->mb_coil_reg[start_addr] = (val == 0xFF00) ? 1 : 0;
+		if(mb_dev->coil_write_cb != NULL)
+		{
+			mb_dev->coil_write_cb(start_addr , val);
+		}
     return MB_OK;
 }
 
 static mb_err_t mb_s_hold_parse(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t val)
 {
     mb_dev->mb_hold_reg[start_addr] = val;
+		if(mb_dev->hold_write_cb != NULL)
+		{
+			mb_dev->hold_write_cb(start_addr , val);
+		}
     return MB_OK;
 }
 
@@ -222,6 +230,10 @@ static mb_err_t mb_s_coils_parse(mb_dev_t *mb_dev , uint16_t start_addr , uint8_
         uint8_t bit_index = i % 8;
         uint8_t coil_value = (val[byte_index] >> bit_index) & 0x01;
         mb_dev->mb_coil_reg[start_addr + i] = coil_value;
+				if(mb_dev->coil_write_cb != NULL)
+				{
+					mb_dev->coil_write_cb(start_addr + i , coil_value);
+				}
     }
     return MB_OK;
 }
@@ -231,6 +243,10 @@ static mb_err_t mb_s_holds_parse(mb_dev_t *mb_dev , uint16_t start_addr , uint8_
     for(uint16_t i = 0; i < quantity; i++) {
         uint16_t reg_value = (val[i * 2] << 8) | val[i * 2 + 1];
         mb_dev->mb_hold_reg[start_addr + i] = reg_value;
+				if(mb_dev->hold_write_cb != NULL)
+				{
+					mb_dev->hold_write_cb(start_addr + i , reg_value);
+				}
     }
     return MB_OK;
 }
