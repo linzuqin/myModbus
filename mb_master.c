@@ -1,4 +1,32 @@
 #include "mb_master.h"
+#include "myusart.h"
+
+void mb_m_send(uint8_t *buf, uint16_t len)
+{
+	// uint8_t tx_m_buf[256];
+
+	// memcpy(tx_m_buf, buf, len);
+
+	// HAL_UART_Transmit(uart_devices[0].uartHandle , tx_m_buf , len , 1000);
+}
+
+mb_dev_t mb_master_devs[MB_MASTER_NUM] = 
+{
+	// [0] = {
+	// 	.addr = 1,
+	// 	.identifier = "master1",
+	// 	.mb_coil_reg = coil_buf,
+	// 	.mb_disc_reg = disc_buf,
+	// 	.mb_hold_reg = keep_buf,
+	// 	.mb_input_reg = input_buf,
+	// 	.send_callback = mb_m_send,
+	// 	.rx_buffer = NULL,
+	// 	.coil_size = MB_COIL_REG_SIZE - 1,
+	// 	.disc_size = MB_DISC_REG_SIZE - 1,
+	// 	.hold_size = MB_HOLD_REG_SIZE - 1,
+	// 	.input_size = MB_INPUT_REG_SIZE - 1,
+	// }
+};
 
 static uint32_t mb_get_tick(void)
 {
@@ -226,7 +254,7 @@ static mb_err_t mb_m_check_ack(mb_dev_t *mb_dev)
         mb_dev->error_count++;
         // 解析异常码
         if(mb_dev->rx_size >= 3) {
-            mb_err_code_t exception_code = mb_dev->rx_buffer[2];
+            mb_err_code_t exception_code = (mb_err_code_t)mb_dev->rx_buffer[2];
             switch(exception_code) {
                 case Illegal_Function: return MB_ERR_FUNC;
                 case Illegal_Data_Address: return MB_ERR_ADDR;

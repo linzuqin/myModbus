@@ -64,7 +64,7 @@ mb_err_code_t check(mb_func_code_t func_code , uint16_t start_addr, uint16_t qua
 mb_err_code_t mb_check(mb_dev_t *mb_dev, uint8_t *frame)
 {
     mb_func_code_t func_code = (mb_func_code_t)frame[MB_FUNC_BIT];
-    uint16_t start_addr = (frame[MB_ADDR_BIT] << 8) | frame[MB_ADDR_BIT + 1];
+    uint16_t start_addr = (frame[MB_REGH_ADDR_BIT] << 8) | frame[MB_REGL_ADDR_BIT];
     uint16_t quantity = 0;
 
     mb_err_code_t result = PARSE_OK;
@@ -78,7 +78,7 @@ mb_err_code_t mb_check(mb_dev_t *mb_dev, uint8_t *frame)
         case MB_FUNC_WRITE_MULTIPLE_COILS:
         case MB_FUNC_WRITE_MULTIPLE_REGISTERS:
         {
-            quantity = (frame[MB_REGH_COUNT_BIT] << 8) | frame[MB_REGL_COUNT_BIT + 1];
+            quantity = (frame[MB_REGH_COUNT_BIT] << 8) | frame[MB_REGL_COUNT_BIT];
             result = check(func_code, start_addr, quantity, mb_dev);
             break;
         }
@@ -91,7 +91,7 @@ mb_err_code_t mb_check(mb_dev_t *mb_dev, uint8_t *frame)
             
             if(func_code == MB_FUNC_WRITE_SINGLE_COIL && result == PARSE_OK)
             {
-                uint16_t coil_value = (frame[4] << 8) | frame[5];
+                uint16_t coil_value = (frame[MB_REGH_COUNT_BIT] << 8) | frame[MB_REGL_COUNT_BIT];
                 if(coil_value != 0xFF00 && coil_value != 0x0000)
                 {
                     result = Illegal_Data_Value;
@@ -112,7 +112,7 @@ mb_err_code_t mb_check(mb_dev_t *mb_dev, uint8_t *frame)
 mb_err_code_t mb_slave_check(mb_dev_t *mb_dev, uint8_t *frame)
 {
     mb_func_code_t func_code = (mb_func_code_t)frame[MB_FUNC_BIT];
-    uint16_t start_addr = (frame[MB_ADDR_BIT] << 8) | frame[MB_ADDR_BIT + 1];
+    uint16_t start_addr = (frame[MB_REGH_ADDR_BIT] << 8) | frame[MB_REGL_ADDR_BIT];
     uint16_t quantity = 0;
 
     mb_err_code_t result = PARSE_OK;
@@ -126,7 +126,7 @@ mb_err_code_t mb_slave_check(mb_dev_t *mb_dev, uint8_t *frame)
         case MB_FUNC_WRITE_MULTIPLE_COILS:
         case MB_FUNC_WRITE_MULTIPLE_REGISTERS:
         {
-            quantity = (frame[MB_REGH_COUNT_BIT] << 8) | frame[MB_REGL_COUNT_BIT + 1];
+            quantity = (frame[MB_REGH_COUNT_BIT] << 8) | frame[MB_REGL_COUNT_BIT];
             result = check(func_code, start_addr, quantity, mb_dev);
             break;
         }
@@ -139,7 +139,7 @@ mb_err_code_t mb_slave_check(mb_dev_t *mb_dev, uint8_t *frame)
             
             if(func_code == MB_FUNC_WRITE_SINGLE_COIL && result == PARSE_OK)
             {
-                uint16_t coil_value = (frame[4] << 8) | frame[5];
+                uint16_t coil_value = (frame[MB_REGH_COUNT_BIT] << 8) | frame[MB_REGL_COUNT_BIT];
                 if(coil_value != 0xFF00 && coil_value != 0x0000)
                 {
                     result = Illegal_Data_Value;

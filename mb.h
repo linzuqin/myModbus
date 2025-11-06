@@ -10,16 +10,8 @@
 #define MB_MAX_SIZE        256
 #define MB_MIN_SIZE        4
 
-#define MB_SLAVE_NUM        3
-
-// Modbus 帧结构定义
-#define MB_ADDR_BIT          0                  // modbus帧中地址对应的bit位
-#define MB_FUNC_BIT          1                  // modbus帧中功能码对应的bit位
-#define MB_REGH_ADDR_BIT     2                  // modbus帧中寄存器起始地址高位对应的bit位
-#define MB_REGL_ADDR_BIT     3                  // modbus帧中寄存器起始地址低位对应的bit位
-#define MB_REGH_COUNT_BIT    4                  // 寄存器数量高位
-#define MB_REGL_COUNT_BIT    5                  // 寄存器数量低位
-#define MB_BYTE_COUNT_BIT    6                  // 字节数
+#define MB_SLAVE_NUM        1
+#define MB_MASTER_NUM        1
 
 // 错误码定义
 #define MB_EXCEPTION_ILLEGAL_FUNCTION      0x01
@@ -95,6 +87,10 @@ typedef struct
     void (*send_callback)(uint8_t *buf, uint16_t len);
 } mb_dev_t;
 
+extern uint8_t coil_buf[MB_COIL_REG_SIZE];
+extern uint8_t disc_buf[MB_DISC_REG_SIZE];
+extern uint16_t keep_buf[MB_HOLD_REG_SIZE];
+extern uint16_t input_buf[MB_INPUT_REG_SIZE];
 
 mb_err_t mb_dev_init(mb_dev_t *dev, uint8_t addr, mb_dev_type_t type, void (*send_cb)(uint8_t *, uint16_t));
 

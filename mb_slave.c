@@ -1,5 +1,40 @@
 #include "mb_slave.h"
+#include "myusart.h"
 
+void mb_s_send(uint8_t *buf, uint16_t len)
+{
+
+}
+
+void hold_set_callback(uint16_t addr, uint16_t val)
+{
+
+}
+
+void coil_set_callback(uint16_t addr, uint16_t val)
+{
+
+}
+
+mb_dev_t mb_slave_devs[MB_SLAVE_NUM] = 
+{
+	// [0] = {
+	// 	.addr = 1,
+	// 	.identifier = "device_1",
+	// 	.mb_coil_reg = coil_buf,
+	// 	.mb_disc_reg = disc_buf,
+	// 	.mb_hold_reg = keep_buf,
+	// 	.mb_input_reg = input_buf,
+	// 	.send_callback = mb_s_send,
+	// 	.rx_buffer = uart1_rx_buf,
+	// 	.coil_size = MB_COIL_REG_SIZE - 1,
+	// 	.disc_size = MB_DISC_REG_SIZE - 1,
+	// 	.hold_size = MB_HOLD_REG_SIZE - 1,
+	// 	.input_size = MB_INPUT_REG_SIZE - 1,
+	// 	.hold_write_cb = hold_set_callback,
+	// 	.coil_write_cb = coil_set_callback,
+	// }
+};
 
 /*modbus从机对于读取指令的应答*/
 static mb_err_t mb_s_build_response(mb_dev_t *mb_dev, mb_func_code_t func_code, uint16_t start_addr , uint16_t size, uint16_t wr_val , uint8_t *response , uint16_t response_size)
@@ -261,7 +296,7 @@ static mb_err_t mb_s_parse(mb_dev_t *mb_dev)
         return MB_ERR_SIZE;
     }
 
-    mb_func_code_t function_code = mb_dev->rx_buffer[MB_FUNC_BIT];
+    mb_func_code_t function_code = (mb_func_code_t)mb_dev->rx_buffer[MB_FUNC_BIT];
     uint16_t start_addr = mb_dev->rx_buffer[MB_REGH_ADDR_BIT] << 8 | mb_dev->rx_buffer[MB_REGL_ADDR_BIT];
     uint16_t reg_count = 0;
     uint8_t byte_count = 0;
@@ -375,7 +410,7 @@ static mb_err_t mb_s_parse(mb_dev_t *mb_dev)
         }
         else
         {
-            parse_result = mb_s_build_response(mb_dev, function_code, start_addr, reg_count, 0, response_buf , size);
+            parse_result = mb_s_build_response(mb_dev, function_code, start_addr, reg_count, mb_dev->rx_buffer[4] << 8 | mb_dev->rx_buffer[5], response_buf , size);
             if ( parse_result != MB_OK)
             {
                 uint8_t exception_frame[5] = {0};
