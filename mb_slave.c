@@ -37,16 +37,18 @@ mb_dev_t mb_slave_devs[MB_SLAVE_NUM] =
 };
 
 /*modbus从机对于读取指令的应答*/
-static mb_err_t mb_s_build_response(mb_dev_t *mb_dev, mb_func_code_t func_code, uint16_t start_addr , uint16_t size, uint16_t wr_val , uint8_t *response , uint16_t response_size)
+static mb_err_t mb_s_build_response(mb_dev_t *mb_dev, uint16_t reg_count, mb_s_resp_frame *response , uint16_t response_size)
 {
     mb_err_t result = MB_OK;
     uint16_t response_len = 0;
-    
+    mb_func_code_t func_code = response->head.fun_code;
+    uint16_t start_addr = response->head.reg_addr_h << 8 | response->head.reg_addr_l;
+
     switch(func_code) {
         case MB_FUNC_READ_COILS:        //线圈读取
         case MB_FUNC_READ_DISCRETE:    // 离散读取
         {
-            uint8_t byte_count = (size + 7) / 8;
+            uint8_t byte_count = (reg_count + 7) / 8;
             response_len = 3 + byte_count;
             if (response_len > response_size- 2)// -2是为了预留CRC空间
             { 
@@ -54,11 +56,11 @@ static mb_err_t mb_s_build_response(mb_dev_t *mb_dev, mb_func_code_t func_code, 
             }
             else
             {
-                response[2] = byte_count;  // 字节数
-                memset(&response[3] , 0 , byte_count);
+                response->payload.r_regs.byte_count = byte_count;  // 字节数
+                memset(response->payload.r_regs.data, 0 , sizeof(response->payload.r_regs.data));
 
                 // 打包位状态数据
-                for(uint16_t i = 0; i < size; i++) 
+                for(uint16_t i = 0; i < reg_count; i++) 
                 {
                     uint8_t status = 0;
                     
@@ -75,19 +77,21 @@ static mb_err_t mb_s_build_response(mb_dev_t *mb_dev, mb_func_code_t func_code, 
                     {
                         uint8_t byte_index = i / 8;
                         uint8_t bit_index = i % 8;
-                        response[3 + byte_index] |= (1 << bit_index);
+                        response->payload.r_regs.data[byte_index] |= (1 << bit_index);
                     }
                 }
             }
-
+						uint16_t crc = usMBCRC16((uint8_t *)response, response_len);
+						response->payload.r_regs.data[response_len - 4] = (uint8_t)(crc & 0xFF);     // CRC低位
+						response->payload.r_regs.data[response_len - 3] = (uint8_t)((crc >> 8) & 0xFF);  // CRC高位
             break;
         }
         
         case MB_FUNC_READ_HOLDING: // 保持寄存器
         case MB_FUNC_READ_INPUT:   //输入寄存器
         {
-            response[2] = (uint8_t)(size * 2);  // 字节数
-            response_len = 3 + size * 2;
+            response->payload.r_regs.byte_count = (uint8_t)(reg_count * 2);  // 字节数
+            response_len = 3 + reg_count * 2;
             if (response_len > response_size- 2)// -2是为了预留CRC空间
             { 
                 result = MB_ERR_SIZE;
@@ -95,7 +99,7 @@ static mb_err_t mb_s_build_response(mb_dev_t *mb_dev, mb_func_code_t func_code, 
             else
             {
                 // 填充寄存器数据
-                for(uint16_t i = 0; i < size; i++) 
+                for(uint16_t i = 0; i < reg_count; i++) 
                 {
                     uint16_t reg_value = 0;
                     
@@ -107,11 +111,13 @@ static mb_err_t mb_s_build_response(mb_dev_t *mb_dev, mb_func_code_t func_code, 
                         reg_value = mb_dev->mb_input_reg[start_addr + i];
                     }
                     
-                    response[3 + i * 2] = (uint8_t)((reg_value >> 8) & 0xFF);  // 高位
-                    response[4 + i * 2] = (uint8_t)(reg_value & 0xFF);         // 低位
+                    response->payload.r_regs.data[0 + i * 2] = (uint8_t)((reg_value >> 8) & 0xFF);  // 高位
+                    response->payload.r_regs.data[1 + i * 2] = (uint8_t)(reg_value & 0xFF);         // 低位
                 }
             }
-
+						uint16_t crc = usMBCRC16((uint8_t *)response, response_len);
+						response->payload.r_regs.data[response_len - 4] = (uint8_t)(crc & 0xFF);     // CRC低位
+						response->payload.r_regs.data[response_len - 3] = (uint8_t)((crc >> 8) & 0xFF);  // CRC高位
             break;
         }
         
@@ -124,17 +130,17 @@ static mb_err_t mb_s_build_response(mb_dev_t *mb_dev, mb_func_code_t func_code, 
             }
             else
             {
-                response[2] = (uint8_t)(start_addr >> 8);   // 地址高位
-                response[3] = (uint8_t)(start_addr & 0xFF); // 地址低位
-                
-                if(wr_val) {
-                    response[4] = 0xFF;
-                    response[5] = 0x00;
+                if(mb_dev->mb_coil_reg[start_addr]) {
+                    response->payload.w_reg.value_h = 0xFF;
+                    response->payload.w_reg.value_l = 0x00;
                 } else {
-                    response[4] = 0x00;
-                    response[5] = 0x00;
+                    response->payload.w_reg.value_h = 0x00;
+                    response->payload.w_reg.value_l = 0x00;
                 }
             }
+						uint16_t crc = usMBCRC16((uint8_t *)response, response_len);
+						response->payload.w_reg.crc_h = (uint8_t)(crc & 0xFF);     // CRC低位
+						response->payload.w_reg.crc_l = (uint8_t)((crc >> 8) & 0xFF);  // CRC高位
             break;
         }
         
@@ -147,11 +153,12 @@ static mb_err_t mb_s_build_response(mb_dev_t *mb_dev, mb_func_code_t func_code, 
             }
             else
             {   
-                response[2] = (uint8_t)(start_addr >> 8);   // 地址高位
-                response[3] = (uint8_t)(start_addr & 0xFF); // 地址低位
-                response[4] = (uint8_t)(wr_val >> 8);  // 值高位
-                response[5] = (uint8_t)(wr_val & 0xFF); // 值低位
+                response->payload.w_reg.value_h = (uint8_t)(mb_dev->mb_coil_reg[start_addr] >> 8);  // 值高位
+                response->payload.w_reg.value_l = (uint8_t)(mb_dev->mb_coil_reg[start_addr] & 0xFF); // 值低位
             }
+						uint16_t crc = usMBCRC16((uint8_t *)response, response_len);
+						response->payload.w_reg.crc_h = (uint8_t)(crc & 0xFF);     // CRC低位
+						response->payload.w_reg.crc_l = (uint8_t)((crc >> 8) & 0xFF);  // CRC高位
             break;
         }
         
@@ -165,11 +172,12 @@ static mb_err_t mb_s_build_response(mb_dev_t *mb_dev, mb_func_code_t func_code, 
             }
             else
             {
-                response[2] = (uint8_t)(start_addr >> 8);   // 起始地址高位
-                response[3] = (uint8_t)(start_addr & 0xFF); // 起始地址低位
-                response[4] = (uint8_t)(size >> 8);     // 数量高位
-                response[5] = (uint8_t)(size & 0xFF);   // 数量低位
+                response->payload.w_regs.quantity_h = (uint8_t)(reg_count >> 8);  // 值高位
+                response->payload.w_regs.quantity_l = (uint8_t)(reg_count & 0xFF); // 值低位
             }
+						uint16_t crc = usMBCRC16((uint8_t *)response, response_len);
+						response->payload.w_regs.crc_h = (uint8_t)(crc & 0xFF);     // CRC低位
+						response->payload.w_regs.crc_l = (uint8_t)((crc >> 8) & 0xFF);  // CRC高位
             break;
         }
         
@@ -177,18 +185,7 @@ static mb_err_t mb_s_build_response(mb_dev_t *mb_dev, mb_func_code_t func_code, 
             result = MB_ERR_FUNC;  // 不支持的功能码
             break;
     }
-    
-    if(result == MB_OK)
-    {
-        response[0] = mb_dev->addr;  // 设备地址
-        response[1] = func_code;     // 功能码
-        // 计算并添加CRC校验
-        uint16_t crc = usMBCRC16(response, response_len);
-        response[response_len] = (uint8_t)(crc & 0xFF);     // CRC低位
-        response[response_len + 1] = (uint8_t)((crc >> 8) & 0xFF);  // CRC高位
-    }
 
-    
     return result;
 }
 
@@ -241,10 +238,10 @@ static uint16_t mb_s_get_response_size(mb_func_code_t func_code, uint16_t quanti
 static mb_err_t mb_s_coil_parse(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t val)
 {
     mb_dev->mb_coil_reg[start_addr] = (val == 0xFF00) ? 1 : 0;
-		if(mb_dev->coil_write_cb != NULL)
-		{
-			mb_dev->coil_write_cb(start_addr , val);
-		}
+    if(mb_dev->coil_write_cb != NULL)
+    {
+        mb_dev->coil_write_cb(start_addr , val);
+    }
     return MB_OK;
 }
 
@@ -265,10 +262,10 @@ static mb_err_t mb_s_coils_parse(mb_dev_t *mb_dev , uint16_t start_addr , uint8_
         uint8_t bit_index = i % 8;
         uint8_t coil_value = (val[byte_index] >> bit_index) & 0x01;
         mb_dev->mb_coil_reg[start_addr + i] = coil_value;
-				if(mb_dev->coil_write_cb != NULL)
-				{
-					mb_dev->coil_write_cb(start_addr + i , coil_value);
-				}
+        if(mb_dev->coil_write_cb != NULL)
+        {
+            mb_dev->coil_write_cb(start_addr + i , coil_value);
+        }
     }
     return MB_OK;
 }
@@ -278,10 +275,10 @@ static mb_err_t mb_s_holds_parse(mb_dev_t *mb_dev , uint16_t start_addr , uint8_
     for(uint16_t i = 0; i < quantity; i++) {
         uint16_t reg_value = (val[i * 2] << 8) | val[i * 2 + 1];
         mb_dev->mb_hold_reg[start_addr + i] = reg_value;
-				if(mb_dev->hold_write_cb != NULL)
-				{
-					mb_dev->hold_write_cb(start_addr + i , reg_value);
-				}
+        if(mb_dev->hold_write_cb != NULL)
+        {
+            mb_dev->hold_write_cb(start_addr + i , reg_value);
+        }
     }
     return MB_OK;
 }
@@ -296,8 +293,9 @@ static mb_err_t mb_s_parse(mb_dev_t *mb_dev)
         return MB_ERR_SIZE;
     }
 
-    mb_func_code_t function_code = (mb_func_code_t)mb_dev->rx_buffer[MB_FUNC_BIT];
-    uint16_t start_addr = mb_dev->rx_buffer[MB_REGH_ADDR_BIT] << 8 | mb_dev->rx_buffer[MB_REGL_ADDR_BIT];
+    mb_s_parse_frame *frame = (mb_s_parse_frame *)mb_dev->rx_buffer;
+    mb_func_code_t function_code = frame->head.fun_code;
+    uint16_t start_addr = frame->head.reg_addr_h << 8 | frame->head.reg_addr_l;
     uint16_t reg_count = 0;
     uint8_t byte_count = 0;
 
@@ -328,36 +326,36 @@ static mb_err_t mb_s_parse(mb_dev_t *mb_dev)
         case MB_FUNC_READ_DISCRETE://读离散量
         case MB_FUNC_READ_HOLDING://读保持寄存器
         case MB_FUNC_READ_INPUT://读输入寄存器
-            reg_count = mb_dev->rx_buffer[MB_REGH_COUNT_BIT] << 8 | mb_dev->rx_buffer[MB_REGL_COUNT_BIT];
+            reg_count = frame->payload.r_regs.quantity_h << 8 | frame->payload.r_regs.quantity_l;
             break;
 
         case MB_FUNC_WRITE_SINGLE_COIL://写单个线圈
             reg_count = 1;
-            parse_result = mb_s_coil_parse(mb_dev, start_addr, mb_dev->rx_buffer[4] << 8 | mb_dev->rx_buffer[5]);
+            parse_result = mb_s_coil_parse(mb_dev, start_addr, frame->payload.w_reg.value_h << 8 | frame->payload.w_reg.value_l);
             break;
 
         case MB_FUNC_WRITE_SINGLE_REGISTER://写单个保持寄存器
             reg_count = 1;
-            parse_result = mb_s_hold_parse(mb_dev, start_addr, mb_dev->rx_buffer[4] << 8 | mb_dev->rx_buffer[5]);
+            parse_result = mb_s_hold_parse(mb_dev, start_addr, frame->payload.w_reg.value_h << 8 | frame->payload.w_reg.value_l);
             break;
 
         case MB_FUNC_WRITE_MULTIPLE_COILS://写多个线圈
-            reg_count = mb_dev->rx_buffer[MB_REGH_COUNT_BIT] << 8 | mb_dev->rx_buffer[MB_REGL_COUNT_BIT];
-            byte_count = mb_dev->rx_buffer[6];
+            reg_count = frame->payload.w_regs.quantity_h << 8 | frame->payload.w_regs.quantity_l;
+            byte_count = frame->payload.w_regs.byte_count;
             if(mb_dev->rx_size < (7 + byte_count + 2)) {
                 parse_result = MB_ERR_SIZE;
             } else {
-                parse_result = mb_s_coils_parse(mb_dev, start_addr, &mb_dev->rx_buffer[7], reg_count);
+                parse_result = mb_s_coils_parse(mb_dev, start_addr, frame->payload.w_regs.payload, reg_count);
             }
             break;
 
         case MB_FUNC_WRITE_MULTIPLE_REGISTERS://写多个保持寄存器
-            reg_count = mb_dev->rx_buffer[MB_REGH_COUNT_BIT] << 8 | mb_dev->rx_buffer[MB_REGL_COUNT_BIT];
-            byte_count = mb_dev->rx_buffer[6];
+            reg_count = frame->payload.w_regs.quantity_h << 8 | frame->payload.w_regs.quantity_l;
+            byte_count = frame->payload.w_regs.byte_count;
             if(mb_dev->rx_size < (7 + byte_count + 2)) {
                 parse_result = MB_ERR_SIZE;
             } else {
-                parse_result = mb_s_holds_parse(mb_dev, start_addr, &mb_dev->rx_buffer[7], reg_count);
+                parse_result = mb_s_holds_parse(mb_dev, start_addr, frame->payload.w_regs.payload, reg_count);
             }
             break;
 
@@ -386,11 +384,11 @@ static mb_err_t mb_s_parse(mb_dev_t *mb_dev)
 
     /* 处理完数据后开始正常应答 */
     uint16_t size = mb_s_get_response_size(function_code, reg_count);//理论响应数据长度
-    uint8_t *response_buf = NULL;
+    mb_s_resp_frame *response_buf = NULL;
     
     if(size < MB_MAX_SIZE && size != 0)
     {
-        response_buf = (uint8_t *)calloc(size , sizeof(uint8_t));
+        response_buf = (mb_s_resp_frame *)calloc(size , sizeof(mb_s_resp_frame));
         if(response_buf == NULL) //若申请内存失败
         {
             // 内存分配失败，发送异常响应
@@ -410,7 +408,11 @@ static mb_err_t mb_s_parse(mb_dev_t *mb_dev)
         }
         else
         {
-            parse_result = mb_s_build_response(mb_dev, function_code, start_addr, reg_count, mb_dev->rx_buffer[4] << 8 | mb_dev->rx_buffer[5], response_buf , size);
+            response_buf->head.dev_addr = mb_dev->addr;  // 设备地址
+            response_buf->head.fun_code = function_code;     // 功能码
+            response_buf->head.reg_addr_h = (start_addr >> 8)&0xff;     // 寄存器起始地址高位
+            response_buf->head.reg_addr_l = start_addr & 0xff;          // 寄存器起始地址低位
+            parse_result = mb_s_build_response(mb_dev , reg_count , response_buf , size);
             if ( parse_result != MB_OK)
             {
                 uint8_t exception_frame[5] = {0};
@@ -448,7 +450,7 @@ static mb_err_t mb_s_parse(mb_dev_t *mb_dev)
 
     if (parse_result == MB_OK) 
     {
-        mb_dev->send_callback(response_buf, size);
+        mb_dev->send_callback((uint8_t *)response_buf, size);
         mb_dev->tx_count++;
         mb_dev->rx_size = 0;
     }
@@ -461,11 +463,10 @@ static mb_err_t mb_s_parse(mb_dev_t *mb_dev)
     return MB_OK;
 }
 
-
 mb_err_t mb_s_data_get(uint8_t *data_buf , uint16_t data_len)
 {
     uint16_t crc_cal = usMBCRC16(data_buf , data_len - 2);//计算CRC
-    uint16_t crc_recv = (uint16_t)(data_buf[data_len - 2] | (data_buf[data_len - 1] << 8));//接收的CRC
+    uint16_t crc_recv = (uint16_t)((data_buf[data_len - 1] << 8) | (data_buf[data_len] ));//接收的CRC
     if(crc_cal != crc_recv)//保证CRC正确
     {
         return MB_ERR_CRC;

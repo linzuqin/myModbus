@@ -19,22 +19,24 @@
 #define MB_EXCEPTION_ILLEGAL_DATA_VALUE    0x03
 #define MB_EXCEPTION_SLAVE_DEVICE_FAILURE  0x04
 
+// 功能码类型定义
+typedef uint8_t mb_func_code_t;
+
+#define MB_FUNC_READ_COILS        ((mb_func_code_t)0x01)
+#define MB_FUNC_READ_DISCRETE     ((mb_func_code_t)0x02)
+#define MB_FUNC_READ_HOLDING      ((mb_func_code_t)0x03)
+#define MB_FUNC_READ_INPUT        ((mb_func_code_t)0x04)
+#define MB_FUNC_WRITE_SINGLE_COIL ((mb_func_code_t)0x05)
+#define MB_FUNC_WRITE_SINGLE_REGISTER ((mb_func_code_t)0x06)
+#define MB_FUNC_WRITE_MULTIPLE_COILS ((mb_func_code_t)0x0F)
+#define MB_FUNC_WRITE_MULTIPLE_REGISTERS ((mb_func_code_t)0x10)
+
+
 typedef enum
 {
     MB_MASTER = 0,
     MB_SLAVE,
 } mb_dev_type_t;
-
-typedef enum {
-    MB_FUNC_READ_COILS = 0x01,
-    MB_FUNC_READ_DISCRETE = 0x02,
-    MB_FUNC_READ_HOLDING = 0x03,
-    MB_FUNC_READ_INPUT = 0x04,
-    MB_FUNC_WRITE_SINGLE_COIL = 0x05,
-    MB_FUNC_WRITE_SINGLE_REGISTER = 0x06,
-    MB_FUNC_WRITE_MULTIPLE_COILS = 0x0F,
-    MB_FUNC_WRITE_MULTIPLE_REGISTERS = 0x10
-} mb_func_code_t;
 
 typedef enum
 {
@@ -86,6 +88,7 @@ typedef struct
 
     void (*send_callback)(uint8_t *buf, uint16_t len);
 } mb_dev_t;
+
 
 extern uint8_t coil_buf[MB_COIL_REG_SIZE];
 extern uint8_t disc_buf[MB_DISC_REG_SIZE];
