@@ -11,7 +11,7 @@ typedef struct
     mb_func_code_t fun_code;
     uint8_t reg_addr_h;
     uint8_t reg_addr_l;
-}mb_constant_head;
+}mb_payload_head;
 
 typedef union {
     struct {  // 读取寄存器操作
@@ -40,6 +40,20 @@ typedef union {
     } w_regs;
 }mb_payload;
 
+
+typedef struct
+{
+    mb_payload_head head;
+    mb_payload payload;
+}mb_s_parse_frame;
+
+typedef struct
+{
+    uint8_t dev_addr;
+    mb_func_code_t fun_code;
+
+}mb_resp_head;
+
 typedef union {
     struct {  // 读取寄存器的应答
         uint8_t byte_count;
@@ -47,6 +61,9 @@ typedef union {
     } r_regs;
     
     struct {  // 写入单个寄存器的应答
+				uint8_t reg_addr_h;
+				uint8_t reg_addr_l;
+			
         uint8_t value_h;
         uint8_t value_l;
 
@@ -55,8 +72,12 @@ typedef union {
     } w_reg;
 
     struct {  // 写入多个寄存器的应答
+				uint8_t reg_addr_h;
+				uint8_t reg_addr_l;
+			
         uint8_t quantity_h;
         uint8_t quantity_l;
+			
         uint8_t crc_h;
         uint8_t crc_l;
     } w_regs;
@@ -64,13 +85,7 @@ typedef union {
 
 typedef struct
 {
-    mb_constant_head head;
-    mb_payload payload;
-}mb_s_parse_frame;
-
-typedef struct
-{
-    mb_constant_head head;
+    mb_resp_head head;
     mb_resp payload;
 }mb_s_resp_frame;
 
