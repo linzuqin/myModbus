@@ -90,11 +90,81 @@ typedef struct
 } mb_dev_t;
 
 
+typedef struct
+{
+    uint8_t dev_addr;
+    mb_func_code_t fun_code;
+    uint8_t reg_addr_h;
+    uint8_t reg_addr_l;
+}mb_payload_head;
+
+typedef union {
+    struct {  // 读取寄存器操作
+        uint8_t quantity_h;
+        uint8_t quantity_l;
+
+        uint8_t crc_h;
+        uint8_t crc_l;
+
+    } r_regs;
+    
+    struct {  // 写入单个寄存器操作
+        uint8_t value_h;
+        uint8_t value_l;
+
+        uint8_t crc_h;
+        uint8_t crc_l;
+    } w_reg;
+
+    struct {  // 写入多个寄存器操作
+        uint8_t quantity_h;
+        uint8_t quantity_l;
+        uint8_t byte_count;
+        uint8_t payload[248];//包含校验位
+
+    } w_regs;
+}mb_payload;
+
+typedef struct
+{
+    uint8_t dev_addr;
+    mb_func_code_t fun_code;
+
+}mb_resp_head;
+
+typedef union {
+    struct {  // 读取寄存器的应答
+        uint8_t byte_count;
+        uint8_t data[248];//包含校验位
+    } r_regs;
+    
+    struct {  // 写入单个寄存器的应答
+        uint8_t reg_addr_h;
+        uint8_t reg_addr_l;
+			
+        uint8_t value_h;
+        uint8_t value_l;
+
+        uint8_t crc_h;
+        uint8_t crc_l;
+    } w_reg;
+
+    struct {  // 写入多个寄存器的应答
+        uint8_t reg_addr_h;
+        uint8_t reg_addr_l;
+			
+        uint8_t quantity_h;
+        uint8_t quantity_l;
+			
+        uint8_t crc_h;
+        uint8_t crc_l;
+    } w_regs;
+}mb_resp;
+
 extern uint8_t coil_buf[MB_COIL_REG_SIZE];
 extern uint8_t disc_buf[MB_DISC_REG_SIZE];
-extern uint16_t keep_buf[MB_HOLD_REG_SIZE];
+extern uint16_t hold_buf[MB_HOLD_REG_SIZE];
 extern uint16_t input_buf[MB_INPUT_REG_SIZE];
 
-mb_err_t mb_dev_init(mb_dev_t *dev, uint8_t addr, mb_dev_type_t type, void (*send_cb)(uint8_t *, uint16_t));
 
 #endif /* _MB_H_ */
