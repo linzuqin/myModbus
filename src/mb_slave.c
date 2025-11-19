@@ -1,25 +1,29 @@
 #include "mb_slave.h"
-#include "myusart.h"
 
-void mb_s_send(uint8_t *buf, uint16_t len)
+uint8_t mb_s_coil_buf[MB_S_COIL_SIZE];
+uint8_t mb_s_disc_buf[MB_S_DISC_SIZE];
+uint16_t mb_s_hold_buf[MB_S_HOLD_SIZE];
+uint16_t mb_s_input_buf[MB_S_INPUT_SIZE];
+
+static void mb_s_send(uint8_t *buf, uint16_t len)
 {
-	uint8_t tx_s_buf[256];
+	// uint8_t tx_s_buf[256];
 
-	memcpy(tx_s_buf, buf, len);
+	// memcpy(tx_s_buf, buf, len);
 
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
+	// HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
 
-	HAL_UART_Transmit(uart_devices[0].uartHandle , tx_s_buf , len , 1000);
+	// HAL_UART_Transmit(uart_devices[0].uartHandle , tx_s_buf , len , 1000);
 	
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
+	// HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
 }
 
-void hold_set_callback(uint16_t addr, uint16_t val)
+static void hold_set_callback(uint16_t addr, uint16_t val)
 {
 
 }
 
-void coil_set_callback(uint16_t addr, uint16_t val)
+static void coil_set_callback(uint16_t addr, uint16_t val)
 {
 
 }
@@ -29,16 +33,12 @@ mb_dev_t mb_slave_devs[MB_SLAVE_NUM] =
 	[0] = {
 		.addr = 1,
 		.identifier = "device_1",
-		.mb_coil_reg = coil_buf,
-		.mb_disc_reg = disc_buf,
-		.mb_hold_reg = hold_buf,
-		.mb_input_reg = input_buf,
+		.mb_coil_reg = mb_s_coil_buf,
+		.mb_disc_reg = mb_s_disc_buf,
+		.mb_hold_reg = mb_s_hold_buf,
+		.mb_input_reg = mb_s_input_buf,
 		.send_callback = mb_s_send,
-		.rx_buffer = uart1_rx_buf,
-		.coil_size = MB_COIL_REG_SIZE - 1,
-		.disc_size = MB_DISC_REG_SIZE - 1,
-		.hold_size = MB_HOLD_REG_SIZE - 1,
-		.input_size = MB_INPUT_REG_SIZE - 1,
+		// .rx_buffer = uart1_rx_buf,
 		.hold_write_cb = hold_set_callback,
 		.coil_write_cb = coil_set_callback,
 	}
@@ -317,7 +317,7 @@ static mb_err_t mb_s_parse(mb_dev_t *mb_dev)
     uint16_t reg_count = 0;
     uint8_t byte_count = 0;
 
-    mb_err_code_t check_result = mb_check(mb_dev, mb_dev->rx_buffer);
+    mb_err_code_t check_result = mb_slave_check(mb_dev, mb_dev->rx_buffer);
     
     if(check_result != PARSE_OK) {
         uint8_t exception_frame[5] = {0};

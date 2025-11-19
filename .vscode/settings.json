@@ -6,6 +6,7 @@
         "mb_master.h": "c",
         "mb_slave.h": "c",
         "mb.h": "c",
-        "mb_check.h": "c"
+        "mb_check.h": "c",
+        "string.h": "c"
     }
 }

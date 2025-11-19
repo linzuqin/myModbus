@@ -1,7 +1,11 @@
 #include "mb_master.h"
-#include "myusart.h"
 
-void mb_m_send(uint8_t *buf, uint16_t len)
+//modbus主机专属的全局变量,专门用来存放需要下发数据的数组
+static mb_m_map mb_m_coil_map[MB_M_COIL_SIZE];
+static mb_m_map mb_m_hold_map[MB_M_HOLD_SIZE];
+
+
+static void mb_m_send(uint8_t *buf, uint16_t len)
 {
 	// uint8_t tx_m_buf[256];
 
@@ -10,23 +14,17 @@ void mb_m_send(uint8_t *buf, uint16_t len)
 	// HAL_UART_Transmit(uart_devices[0].uartHandle , tx_m_buf , len , 1000);
 }
 
-mb_dev_t mb_master_devs[MB_MASTER_NUM] = 
-{
-	// [0] = {
-	// 	.addr = 1,
-	// 	.identifier = "master1",
-	// 	.mb_coil_reg = coil_buf,
-	// 	.mb_disc_reg = disc_buf,
-	// 	.mb_hold_reg = keep_buf,
-	// 	.mb_input_reg = input_buf,
-	// 	.send_callback = mb_m_send,
-	// 	.rx_buffer = NULL,
-	// 	.coil_size = MB_COIL_REG_SIZE - 1,
-	// 	.disc_size = MB_DISC_REG_SIZE - 1,
-	// 	.hold_size = MB_HOLD_REG_SIZE - 1,
-	// 	.input_size = MB_INPUT_REG_SIZE - 1,
-	// }
-};
+mb_dev_t mb_master_devs[MB_MASTER_NUM];
+// [0] = {
+// 	.addr = 1,
+// 	.identifier = "master1",
+// 	.mb_coil_reg = coil_buf,
+// 	.mb_disc_reg = disc_buf,
+// 	.mb_hold_reg = keep_buf,
+// 	.mb_input_reg = input_buf,
+// 	.send_callback = mb_m_send,
+// 	.rx_buffer = NULL,
+// }
 
 static uint32_t mb_get_tick(void)
 {
@@ -346,7 +344,7 @@ static mb_err_t mb_m_send_request(mb_dev_t *mb_dev, mb_func_code_t func_code, ui
     return result;
 }
 
-mb_err_t mb_m_coil_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity)
+static mb_err_t mb_m_coil_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity)
 {
     mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_READ_COILS, start_addr, quantity , NULL);
     
@@ -374,21 +372,21 @@ mb_err_t mb_m_coil_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantit
     return result;
 }
 
-mb_err_t mb_m_coil_set(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t value)
+static mb_err_t mb_m_coil_set(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t value)
 {
     mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_WRITE_SINGLE_COIL, start_addr, 1 , &value);
     mb_m_clean(mb_dev);
     return result;
 }
 
-mb_err_t mb_m_coils_set(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity , uint16_t *value)
+static mb_err_t mb_m_coils_set(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity , uint16_t *value)
 {
     mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_WRITE_MULTIPLE_COILS, start_addr, quantity , value);
     mb_m_clean(mb_dev);
     return result;
 }
 
-mb_err_t mb_m_disc_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity)
+static mb_err_t mb_m_disc_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity)
 {
     mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_READ_DISCRETE, start_addr, quantity , NULL);
     
@@ -416,7 +414,7 @@ mb_err_t mb_m_disc_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantit
     return result;
 }
 
-mb_err_t mb_m_hold_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity) 
+static mb_err_t mb_m_hold_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity) 
 {
     mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_READ_HOLDING, start_addr, quantity , NULL);
     if(result == MB_OK)
@@ -442,21 +440,21 @@ mb_err_t mb_m_hold_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantit
     return result;
 }
 
-mb_err_t mb_m_hold_set(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t value)
+static mb_err_t mb_m_hold_set(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t value)
 {
     mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_WRITE_SINGLE_REGISTER, start_addr, 1 , &value);
     mb_m_clean(mb_dev);
     return result;
 }
 
-mb_err_t mb_m_holds_set(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity , uint16_t *value)
+static mb_err_t mb_m_holds_set(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity , uint16_t *value)
 {
     mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_WRITE_MULTIPLE_REGISTERS, start_addr, quantity , value);
     mb_m_clean(mb_dev);
     return result;
 }
 
-mb_err_t mb_m_input_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity)
+static mb_err_t mb_m_input_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quantity)
 {
     mb_err_t result = mb_m_send_request(mb_dev, MB_FUNC_READ_INPUT, start_addr, quantity , NULL);
     
@@ -482,3 +480,38 @@ mb_err_t mb_m_input_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t quanti
     return result;
 }
 
+void mb_m_poll(void)
+{
+    uint8_t i = 0;
+    uint16_t j = 0;
+    for(i = 0;i < MB_MASTER_NUM;i ++)
+    {
+        for(j = 0 ; j < MB_M_COIL_SIZE ; j ++ )
+        {
+            if(mb_master_devs[i].coil_map->setFlag == 1)
+            {
+                if(mb_m_coil_set(&mb_master_devs[i] , j , mb_master_devs[i].coil_map->value) == MB_OK)
+                {
+                    mb_master_devs[i].coil_map->setFlag = 0;
+                }
+            }
+        }
+
+        for(j = 0 ; j < MB_M_HOLD_SIZE ; j ++ )
+        {
+            if(mb_master_devs[i].hold_map->setFlag == 1)
+            {
+                if(mb_m_hold_set(&mb_master_devs[i] , j , mb_master_devs[i].hold_map->value) == MB_OK)
+                {
+                    mb_master_devs[i].hold_map->setFlag = 0;
+                }
+            }
+        }
+
+        mb_m_coil_get(&mb_master_devs[i] , mb_master_devs[i].coil_start_addr , mb_master_devs[i].coil_read_size);
+        mb_m_disc_get(&mb_master_devs[i] , mb_master_devs[i].disc_start_addr , mb_master_devs[i].disc_read_size);
+        mb_m_hold_get(&mb_master_devs[i] , mb_master_devs[i].hold_start_addr , mb_master_devs[i].hold_read_size);
+        mb_m_input_get(&mb_master_devs[i] , mb_master_devs[i].input_start_addr , mb_master_devs[i].coil_read_size);
+
+    }
+}

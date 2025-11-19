@@ -1,23 +1,23 @@
+/*
+ * @Description:定义了与modbus设备相关的参数
+ * @Author: linzuqin
+ * @Date: 2025-11-10 16:20:49
+ * @LastEditTime: 2025-11-19 22:58:29
+ * @LastEditors: linzuqin
+ */
+
 #ifndef _MB_H_
 #define _MB_H_
 #include <stdlib.h>
 #include <stdio.h>
-
 #include <string.h>
-#include "mb_crc.h"
-#include "mb_map.h"
+#include <stdint.h>
 
 #define MB_MAX_SIZE        256
 #define MB_MIN_SIZE        4
 
 #define MB_SLAVE_NUM        1
 #define MB_MASTER_NUM        1
-
-// 错误码定义
-#define MB_EXCEPTION_ILLEGAL_FUNCTION      0x01
-#define MB_EXCEPTION_ILLEGAL_DATA_ADDRESS  0x02
-#define MB_EXCEPTION_ILLEGAL_DATA_VALUE    0x03
-#define MB_EXCEPTION_SLAVE_DEVICE_FAILURE  0x04
 
 // 功能码类型定义
 typedef uint8_t mb_func_code_t;
@@ -31,6 +31,18 @@ typedef uint8_t mb_func_code_t;
 #define MB_FUNC_WRITE_MULTIPLE_COILS ((mb_func_code_t)0x0F)
 #define MB_FUNC_WRITE_MULTIPLE_REGISTERS ((mb_func_code_t)0x10)
 
+
+// modbus从机寄存器大小定义
+#define MB_S_COIL_SIZE        125            // 线圈寄存器大小
+#define MB_S_DISC_SIZE        125            // 离散量寄存器大小
+#define MB_S_HOLD_SIZE        125             // 保持寄存器大小
+#define MB_S_INPUT_SIZE       125             // 输入寄存器大小
+
+// modbus主机寄存器大小定义
+#define MB_M_COIL_SIZE        125            // 线圈寄存器大小
+#define MB_M_DISC_SIZE        125            // 离散量寄存器大小
+#define MB_M_HOLD_SIZE        125             // 保持寄存器大小
+#define MB_M_INPUT_SIZE       125             // 输入寄存器大小
 
 typedef enum
 {
@@ -53,30 +65,38 @@ typedef enum
 
 } mb_err_t;
 
+//这个结构体是主机部分特有 主要是为了能够根据标志位自动执行下发的操作 
+typedef struct
+{
+    uint16_t value;
+    uint8_t setFlag;
+}mb_m_map;
 
 typedef struct
 {
     const char *identifier;
     uint8_t addr;
     mb_dev_type_t type;
-    // mb_uart_t uart_dev;
     
     // 寄存器存储
     uint8_t *mb_coil_reg;           // 线圈寄存器 (位操作)
     uint8_t *mb_disc_reg;           // 离散量寄存器 (位操作)
     uint16_t *mb_hold_reg;          // 保持寄存器 (16位)
     uint16_t *mb_input_reg;         // 输入寄存器 (16位)
-    
-    uint16_t coil_size;
-    uint16_t disc_size;
-    uint16_t hold_size;
-    uint16_t input_size;
 
-    uint16_t start_addr;
-    // 写入回调函数
-    void (*coil_write_cb)(uint16_t addr, uint16_t val);
-    void (*hold_write_cb)(uint16_t addr, uint16_t val);
-    
+    //每个modbus设备都应该配置读取时的起始地址 和 每个寄存器的读取数量
+    uint16_t coil_start_addr;
+    uint16_t coil_read_size;
+
+    uint16_t disc_start_addr;
+    uint16_t disc_read_size;
+
+    uint16_t hold_start_addr;
+    uint16_t hold_read_size;
+
+    uint16_t input_start_addr;
+    uint16_t input_read_size;
+
     // 统计信息
     uint32_t rx_count;
     uint32_t tx_count;
@@ -87,84 +107,15 @@ typedef struct
     uint16_t rx_size;
 
     void (*send_callback)(uint8_t *buf, uint16_t len);
+  
+    // 写入回调函数
+    void (*coil_write_cb)(uint16_t addr, uint16_t val);
+    void (*hold_write_cb)(uint16_t addr, uint16_t val);
+
+    //主机映射表 用于数据的写入
+    mb_m_map *coil_map;
+    mb_m_map *hold_map;
 } mb_dev_t;
-
-
-typedef struct
-{
-    uint8_t dev_addr;
-    mb_func_code_t fun_code;
-    uint8_t reg_addr_h;
-    uint8_t reg_addr_l;
-}mb_payload_head;
-
-typedef union {
-    struct {  // 读取寄存器操作
-        uint8_t quantity_h;
-        uint8_t quantity_l;
-
-        uint8_t crc_h;
-        uint8_t crc_l;
-
-    } r_regs;
-    
-    struct {  // 写入单个寄存器操作
-        uint8_t value_h;
-        uint8_t value_l;
-
-        uint8_t crc_h;
-        uint8_t crc_l;
-    } w_reg;
-
-    struct {  // 写入多个寄存器操作
-        uint8_t quantity_h;
-        uint8_t quantity_l;
-        uint8_t byte_count;
-        uint8_t payload[248];//包含校验位
-
-    } w_regs;
-}mb_payload;
-
-typedef struct
-{
-    uint8_t dev_addr;
-    mb_func_code_t fun_code;
-
-}mb_resp_head;
-
-typedef union {
-    struct {  // 读取寄存器的应答
-        uint8_t byte_count;
-        uint8_t data[248];//包含校验位
-    } r_regs;
-    
-    struct {  // 写入单个寄存器的应答
-        uint8_t reg_addr_h;
-        uint8_t reg_addr_l;
-			
-        uint8_t value_h;
-        uint8_t value_l;
-
-        uint8_t crc_h;
-        uint8_t crc_l;
-    } w_reg;
-
-    struct {  // 写入多个寄存器的应答
-        uint8_t reg_addr_h;
-        uint8_t reg_addr_l;
-			
-        uint8_t quantity_h;
-        uint8_t quantity_l;
-			
-        uint8_t crc_h;
-        uint8_t crc_l;
-    } w_regs;
-}mb_resp;
-
-extern uint8_t coil_buf[MB_COIL_REG_SIZE];
-extern uint8_t disc_buf[MB_DISC_REG_SIZE];
-extern uint16_t hold_buf[MB_HOLD_REG_SIZE];
-extern uint16_t input_buf[MB_INPUT_REG_SIZE];
 
 
 #endif /* _MB_H_ */
