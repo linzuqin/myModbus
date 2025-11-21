@@ -5,13 +5,25 @@
  * @LastEditTime: 2025-11-19 22:51:59
  * @LastEditors: linzuqin
  */
-
 #ifndef MB_MAP_H
 #define MB_MAP_H
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
 
-#include "mb.h"
+// 功能码类型定义
+typedef uint8_t mb_func_code_t;
 
-// Modbus 帧结构定义
+#define MB_FUNC_READ_COILS        ((mb_func_code_t)0x01)
+#define MB_FUNC_READ_DISCRETE     ((mb_func_code_t)0x02)
+#define MB_FUNC_READ_HOLDING      ((mb_func_code_t)0x03)
+#define MB_FUNC_READ_INPUT        ((mb_func_code_t)0x04)
+#define MB_FUNC_WRITE_SINGLE_COIL ((mb_func_code_t)0x05)
+#define MB_FUNC_WRITE_SINGLE_REGISTER ((mb_func_code_t)0x06)
+#define MB_FUNC_WRITE_MULTIPLE_COILS ((mb_func_code_t)0x0F)
+#define MB_FUNC_WRITE_MULTIPLE_REGISTERS ((mb_func_code_t)0x10)
+
 #define MB_ADDR_BIT          0                  // modbus帧中地址对应的bit位
 #define MB_FUNC_BIT          1                  // modbus帧中功能码对应的bit位
 #define MB_REGH_ADDR_BIT     2                  // modbus帧中寄存器起始地址高位对应的bit位
@@ -20,85 +32,8 @@
 #define MB_REGL_COUNT_BIT    5                  // 寄存器数量低位
 #define MB_BYTE_COUNT_BIT    6                  // 字节数
 
-
-//主机操作帧结构体
-typedef struct
-{
-    uint8_t dev_addr;
-    mb_func_code_t fun_code;
-    uint8_t reg_addr_h;
-    uint8_t reg_addr_l;
-}mb_payload_head;
-
-typedef union {
-    struct {  // 读取寄存器操作
-        uint8_t quantity_h;
-        uint8_t quantity_l;
-
-        uint8_t crc_h;
-        uint8_t crc_l;
-
-    } r_regs;
-    
-    struct {  // 写入单个寄存器操作
-        uint8_t value_h;
-        uint8_t value_l;
-
-        uint8_t crc_h;
-        uint8_t crc_l;
-    } w_reg;
-
-    struct {  // 写入多个寄存器操作
-        uint8_t quantity_h;
-        uint8_t quantity_l;
-        uint8_t byte_count;
-        uint8_t payload[248];//包含校验位
-
-    } w_regs;
-}mb_payload;
-
-//从机应答帧结构体
-typedef struct
-{
-    uint8_t dev_addr;
-    mb_func_code_t fun_code;
-
-}mb_resp_head;
-
-typedef union {
-    struct {  // 读取寄存器的应答
-        uint8_t byte_count;
-        uint8_t data[248];//包含校验位
-    } r_regs;
-    
-    struct {  // 写入单个寄存器的应答
-        uint8_t reg_addr_h;
-        uint8_t reg_addr_l;
-			
-        uint8_t value_h;
-        uint8_t value_l;
-
-        uint8_t crc_h;
-        uint8_t crc_l;
-    } w_reg;
-
-    struct {  // 写入多个寄存器的应答
-        uint8_t reg_addr_h;
-        uint8_t reg_addr_l;
-			
-        uint8_t quantity_h;
-        uint8_t quantity_l;
-			
-        uint8_t crc_h;
-        uint8_t crc_l;
-    } w_regs;
-}mb_resp;
-
-
-
-
-
-
+#define MB_VALUEH_BIT    4                  // 写入寄存器值高位
+#define MB_VALUEL_BIT    5                  // 写入寄存器值低位
 
 
 #endif /* MB_MAP_H */

@@ -1,35 +1,11 @@
 /*
- * FreeModbus Libary: A portable Modbus implementation for Modbus ASCII/RTU.
- * Copyright (c) 2006-2018 Christian Walter <cwalter@embedded-solutions.at>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * File: $Id: mbcrc.c,v 1.7 2007/02/18 23:50:27 wolti Exp $
+ * @Description: 
+ * @Author: linzuqin
+ * @Date: 2025-11-21 15:44:23
+ * @LastEditTime: 2025-11-21 16:01:11
+ * @LastEditors: linzuqin
  */
-
-/* ----------------------- Platform includes --------------------------------*/
-#include "mb_crc.h"
+#include "mb.h"
 
 static const uint8_t aucCRCHi[] = {
     0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41, 0x01, 0xC0, 0x80, 0x41,
@@ -81,6 +57,7 @@ static const uint8_t aucCRCLo[] = {
     0x41, 0x81, 0x80, 0x40
 };
 
+//移植自FreeModbus CRC16算法
 uint16_t usMBCRC16( uint8_t * pucFrame, uint16_t usLen )
 {
     uint8_t           ucCRCHi = 0xFF;
@@ -94,4 +71,32 @@ uint16_t usMBCRC16( uint8_t * pucFrame, uint16_t usLen )
         ucCRCHi = aucCRCLo[iIndex];
     }
     return ( uint16_t )( ucCRCHi << 8 | ucCRCLo );
+}
+
+//modbus数据处理 主要负责crc校验 地址匹配
+mb_err_t mb_data_get(void *dev ,uint8_t *data_buf , uint16_t data_len)
+{
+    mb_dev_t *mb_devs = dev;
+    uint16_t crc_cal = usMBCRC16(data_buf , data_len - 2);//计算CRC
+    uint16_t crc_recv = (uint16_t)((data_buf[data_len-1] << 8) | (data_buf[data_len-2] ));//接收的CRC
+    if(crc_cal != crc_recv)//保证CRC正确
+    {
+        return MB_ERR_CRC;
+    }
+    if(data_len == 0 || data_len > MB_MAX_SIZE)//保证传入参数正确
+    {
+        return MB_ERR_SIZE;
+    }
+
+    for(uint8_t i = 0;i<MB_SLAVE_NUM;i++)
+    {
+        if(data_buf[MB_ADDR_BIT] == mb_devs[i].addr)//地址匹配
+        {
+            //地址匹配成功，开始处理数据
+            mb_devs[i].rx_size = data_len;
+            mb_devs[i].rx_count ++;
+            return MB_OK;
+        }
+    }
+    return MB_ERR_ADDR;//地址不匹配
 }

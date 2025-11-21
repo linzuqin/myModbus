@@ -5,13 +5,10 @@
  * @LastEditTime: 2025-11-19 22:58:29
  * @LastEditors: linzuqin
  */
-
 #ifndef _MB_H_
 #define _MB_H_
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
+
+#include "mb_map.h"
 
 #define MB_MAX_SIZE        256
 #define MB_MIN_SIZE        4
@@ -19,17 +16,12 @@
 #define MB_SLAVE_NUM        1
 #define MB_MASTER_NUM        1
 
-// 功能码类型定义
-typedef uint8_t mb_func_code_t;
 
-#define MB_FUNC_READ_COILS        ((mb_func_code_t)0x01)
-#define MB_FUNC_READ_DISCRETE     ((mb_func_code_t)0x02)
-#define MB_FUNC_READ_HOLDING      ((mb_func_code_t)0x03)
-#define MB_FUNC_READ_INPUT        ((mb_func_code_t)0x04)
-#define MB_FUNC_WRITE_SINGLE_COIL ((mb_func_code_t)0x05)
-#define MB_FUNC_WRITE_SINGLE_REGISTER ((mb_func_code_t)0x06)
-#define MB_FUNC_WRITE_MULTIPLE_COILS ((mb_func_code_t)0x0F)
-#define MB_FUNC_WRITE_MULTIPLE_REGISTERS ((mb_func_code_t)0x10)
+// 错误码定义
+#define MB_EXCEPTION_ILLEGAL_FUNCTION      0x01
+#define MB_EXCEPTION_ILLEGAL_DATA_ADDRESS  0x02
+#define MB_EXCEPTION_ILLEGAL_DATA_VALUE    0x03
+#define MB_EXCEPTION_SLAVE_DEVICE_FAILURE  0x04
 
 
 // modbus从机寄存器大小定义
@@ -44,12 +36,28 @@ typedef uint8_t mb_func_code_t;
 #define MB_M_HOLD_SIZE        125             // 保持寄存器大小
 #define MB_M_INPUT_SIZE       125             // 输入寄存器大小
 
+//modbus错误码
+typedef enum
+{
+    PARSE_OK = 0x00,
+    Illegal_Function = 0x01,
+    Illegal_Data_Address = 0x02,
+    Illegal_Data_Value = 0x03,
+    Slave_Device_Failure = 0x04,
+    Acknowledge = 0x05,
+    Slave_Device_Busy = 0x06,
+    Negative_Acknowledge = 0x07,
+    Memory_Parity_Error = 0x08,
+}mb_err_code_t;
+
+//modbus设备类型
 typedef enum
 {
     MB_MASTER = 0,
     MB_SLAVE,
 } mb_dev_type_t;
 
+//modbus函数返回值
 typedef enum
 {
     MB_OK = 0,
@@ -62,7 +70,6 @@ typedef enum
     MB_ERR_TIMEOUT,
     MB_ERR_BUILD,
     MB_ERR_MEMORY,
-
 } mb_err_t;
 
 //这个结构体是主机部分特有 主要是为了能够根据标志位自动执行下发的操作 
@@ -116,6 +123,9 @@ typedef struct
     mb_m_map *coil_map;
     mb_m_map *hold_map;
 } mb_dev_t;
+
+uint16_t usMBCRC16( uint8_t * pucFrame, uint16_t usLen );
+mb_err_t mb_data_get(void *dev ,uint8_t *data_buf , uint16_t data_len);
 
 
 #endif /* _MB_H_ */

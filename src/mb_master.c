@@ -1,34 +1,85 @@
 #include "mb_master.h"
+// #include "myusart.h"
 
 //modbus主机专属的全局变量,专门用来存放需要下发数据的数组
 static mb_m_map mb_m_coil_map[MB_M_COIL_SIZE];
 static mb_m_map mb_m_hold_map[MB_M_HOLD_SIZE];
 
+//modbus主机专属的全局变量,专门用来存放读取到的数据
+static uint8_t mb_m_coil_buf[MB_M_COIL_SIZE];
+static uint8_t mb_m_disc_buf[MB_M_DISC_SIZE];
+static uint16_t mb_m_hold_buf[MB_M_HOLD_SIZE];
+static uint16_t mb_m_input_buf[MB_M_INPUT_SIZE];
 
+//串口发送函数 需要根据实际修改
 static void mb_m_send(uint8_t *buf, uint16_t len)
 {
-	// uint8_t tx_m_buf[256];
+	uint8_t tx_m_buf[len];
 
-	// memcpy(tx_m_buf, buf, len);
+	memcpy(tx_m_buf, buf, len);
+    // test code for one slave device
+
+	// HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
 
 	// HAL_UART_Transmit(uart_devices[0].uartHandle , tx_m_buf , len , 1000);
+	
+	// HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
 }
 
-mb_dev_t mb_master_devs[MB_MASTER_NUM];
-// [0] = {
-// 	.addr = 1,
-// 	.identifier = "master1",
-// 	.mb_coil_reg = coil_buf,
-// 	.mb_disc_reg = disc_buf,
-// 	.mb_hold_reg = keep_buf,
-// 	.mb_input_reg = input_buf,
-// 	.send_callback = mb_m_send,
-// 	.rx_buffer = NULL,
-// }
-
-static uint32_t mb_get_tick(void)
+//保持寄存器写入回调函数
+static void hold_set_callback(uint16_t addr, uint16_t val)
 {
 
+}
+
+//线圈寄存器写入回调函数
+static void coil_set_callback(uint16_t addr, uint16_t val)
+{
+
+}
+
+// modbus主机设备列表
+mb_dev_t mb_master_devs[MB_MASTER_NUM];
+// test code for one slave device
+//  mb_dev_t mb_master_devs[MB_MASTER_NUM]	= 
+//  {
+//  	[0] = {
+//  		.addr = 1,
+//  		.identifier = "device_1",
+//  		.mb_coil_reg = mb_m_coil_buf,
+//  		.mb_disc_reg = mb_m_disc_buf,
+//  		.mb_hold_reg = mb_m_hold_buf,
+//  		.mb_input_reg = mb_m_input_buf,
+		
+//  		.coil_start_addr = 0,
+//  		.coil_read_size = sizeof(mb_m_coil_buf),
+			
+//  		.disc_start_addr = 0,
+//  		.disc_read_size = sizeof(mb_m_disc_buf),
+			
+//  		.hold_start_addr = 0,
+//  		.hold_read_size = sizeof(mb_m_hold_buf)/2,//mb_s_hold_buf是uint16_t类型的 sizeof算出来的长度会是实际长度的2倍
+			
+//  		.input_start_addr = 0,
+//  		.input_read_size = sizeof(mb_m_input_buf)/2,//mb_s_hold_buf是uint16_t类型的 sizeof算出来的长度会是实际长度的2倍
+			
+//  		.send_callback = mb_m_send,
+//  		.rx_buffer = uart1_rx_buf,
+//  		.hold_write_cb = hold_set_callback,
+//  		.coil_write_cb = coil_set_callback,
+		
+//  		.coil_map = mb_m_coil_map,
+//  		.hold_map = mb_m_hold_map,
+		
+//  		.timeout = 1000,
+//  	}
+//  };
+
+//获取系统tick数 主要用来作超时判断
+static uint32_t mb_get_tick(void)
+{
+    // test code
+    // return HAL_GetTick();
     return 0;
 }
 
@@ -42,6 +93,7 @@ static void mb_m_clean(mb_dev_t *mb_dev)
     memset(mb_dev->rx_buffer , 0 , MB_MAX_SIZE);
 }
 
+//构建modbus主机请求报文
 static mb_err_t mb_m_build_request(mb_dev_t *mb_dev, mb_func_code_t func_code, uint16_t start_addr , uint16_t size , uint16_t* val ,uint8_t *request , uint16_t request_size)
 {
     uint16_t request_len = 0;
@@ -207,20 +259,20 @@ static mb_err_t mb_m_build_request(mb_dev_t *mb_dev, mb_func_code_t func_code, u
 static mb_err_t mb_m_check_ack(mb_dev_t *mb_dev)
 {
     uint32_t start_time = mb_get_tick();
-    
+    uint32_t end_time = 0;
     // 等待响应
     while((mb_get_tick() - start_time) < mb_dev->timeout)
     {
         if(mb_dev->rx_size > 0)
         {
             mb_dev->rx_count++;
+						end_time = mb_get_tick();
             break;
         }
-        // 在这里添加延时等待
     }
     
     // 超时检查
-    if((mb_get_tick() - start_time) >= mb_dev->timeout)
+    if((end_time - start_time) >= mb_dev->timeout)
     {
         mb_dev->error_count++;
         return MB_ERR_TIMEOUT;
@@ -230,22 +282,6 @@ static mb_err_t mb_m_check_ack(mb_dev_t *mb_dev)
     if (mb_dev->rx_size < MB_MIN_SIZE) {
         mb_dev->error_count++;
         return MB_ERR_SIZE;
-    }
-    
-    // CRC检查
-    uint16_t crc_cal = usMBCRC16(mb_dev->rx_buffer, mb_dev->rx_size - 2);
-    uint16_t crc_recv = (mb_dev->rx_buffer[mb_dev->rx_size - 2] | 
-                        (mb_dev->rx_buffer[mb_dev->rx_size - 1] << 8));
-    if(crc_cal != crc_recv)
-    {
-        mb_dev->error_count++;
-        return MB_ERR_CRC;
-    }
-    
-    // 地址检查
-    if (mb_dev->rx_buffer[0] != mb_dev->addr) {
-        mb_dev->error_count++;
-        return MB_ERR_ADDR;
     }
     
     if (mb_dev->rx_buffer[1] & 0x80) {
@@ -266,6 +302,7 @@ static mb_err_t mb_m_check_ack(mb_dev_t *mb_dev)
     return MB_OK;
 }
 
+//根据功能码和读取数量获取请求报文的理论长度
 static uint16_t mb_m_get_request_size(mb_func_code_t func_code, uint16_t quantity)
 {
     uint16_t size = 0;
@@ -306,6 +343,7 @@ static uint16_t mb_m_get_request_size(mb_func_code_t func_code, uint16_t quantit
     return size;
 }
 
+//modbus主机发送请求 包含了应答检测
 static mb_err_t mb_m_send_request(mb_dev_t *mb_dev, mb_func_code_t func_code, uint16_t start_addr, uint16_t quantity , uint16_t *val)
 {
     mb_err_t result = MB_OK;
@@ -480,6 +518,34 @@ static mb_err_t mb_m_input_get(mb_dev_t *mb_dev , uint16_t start_addr , uint16_t
     return result;
 }
 
+//modbus筛选串口收到的数据
+mb_err_t mb_m_data_get(uint8_t *data_buf , uint16_t data_len)
+{
+    uint16_t crc_cal = usMBCRC16(data_buf , data_len - 2);//计算CRC
+    uint16_t crc_recv = (uint16_t)((data_buf[data_len-1] << 8) | (data_buf[data_len-2] ));//接收的CRC
+    if(crc_cal != crc_recv)//保证CRC正确
+    {
+        return MB_ERR_CRC;
+    }
+    if(data_len == 0 || data_len > MB_MAX_SIZE)//保证传入参数正确
+    {
+        return MB_ERR_SIZE;
+    }
+
+    for(uint8_t i = 0;i<MB_SLAVE_NUM;i++)
+    {
+        if(data_buf[MB_ADDR_BIT] == mb_master_devs[i].addr)//地址匹配
+        {
+            //地址匹配成功，开始处理数据
+            mb_master_devs[i].rx_size = data_len;
+            mb_master_devs[i].rx_count ++;
+            return MB_OK;
+        }
+    }
+    return MB_ERR_ADDR;//地址不匹配
+}
+
+//modbus主机轮询函数 负责读取从机数据和检查是否有数据需要写入
 void mb_m_poll(void)
 {
     uint8_t i = 0;
