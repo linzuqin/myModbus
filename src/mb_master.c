@@ -1,5 +1,4 @@
 #include "mb_master.h"
-// #include "myusart.h"
 
 //modbus主机专属的全局变量,专门用来存放需要下发数据的数组
 static mb_m_map mb_m_coil_map[MB_M_COIL_SIZE];
@@ -21,7 +20,7 @@ static void mb_m_send(uint8_t *buf, uint16_t len)
 
 	// HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
 
-	// HAL_UART_Transmit(uart_devices[0].uartHandle , tx_m_buf , len , 1000);
+	//HAL_UART_Transmit(&huart1 , tx_m_buf , len , 1000);
 	
 	// HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
 }
@@ -41,44 +40,44 @@ static void coil_set_callback(uint16_t addr, uint16_t val)
 // modbus主机设备列表
 mb_dev_t mb_master_devs[MB_MASTER_NUM];
 // test code for one slave device
-//  mb_dev_t mb_master_devs[MB_MASTER_NUM]	= 
-//  {
-//  	[0] = {
-//  		.addr = 1,
-//  		.identifier = "device_1",
-//  		.mb_coil_reg = mb_m_coil_buf,
-//  		.mb_disc_reg = mb_m_disc_buf,
-//  		.mb_hold_reg = mb_m_hold_buf,
-//  		.mb_input_reg = mb_m_input_buf,
+//   mb_dev_t mb_master_devs[MB_MASTER_NUM]	= 
+//   {
+//   	[0] = {
+//   		.addr = 1,
+//   		.identifier = "device_1",
+//   		.mb_coil_reg = mb_m_coil_buf,
+//   		.mb_disc_reg = mb_m_disc_buf,
+//   		.mb_hold_reg = mb_m_hold_buf,
+//   		.mb_input_reg = mb_m_input_buf,
 		
-//  		.coil_start_addr = 0,
-//  		.coil_read_size = sizeof(mb_m_coil_buf),
+//   		.coil_start_addr = 0,
+//   		.coil_read_size = sizeof(mb_m_coil_buf),
 			
-//  		.disc_start_addr = 0,
-//  		.disc_read_size = sizeof(mb_m_disc_buf),
+//   		.disc_start_addr = 0,
+//   		.disc_read_size = sizeof(mb_m_disc_buf),
 			
-//  		.hold_start_addr = 0,
-//  		.hold_read_size = sizeof(mb_m_hold_buf)/2,//mb_s_hold_buf是uint16_t类型的 sizeof算出来的长度会是实际长度的2倍
+//   		.hold_start_addr = 0,
+//   		.hold_read_size = sizeof(mb_m_hold_buf)/2,//mb_s_hold_buf是uint16_t类型的 sizeof算出来的长度会是实际长度的2倍
 			
-//  		.input_start_addr = 0,
-//  		.input_read_size = sizeof(mb_m_input_buf)/2,//mb_s_hold_buf是uint16_t类型的 sizeof算出来的长度会是实际长度的2倍
+//   		.input_start_addr = 0,
+//   		.input_read_size = sizeof(mb_m_input_buf)/2,//mb_s_hold_buf是uint16_t类型的 sizeof算出来的长度会是实际长度的2倍
 			
-//  		.send_callback = mb_m_send,
-//  		.rx_buffer = uart1_rx_buf,
-//  		.hold_write_cb = hold_set_callback,
-//  		.coil_write_cb = coil_set_callback,
+//   		.send_callback = mb_m_send,
+//   		.rx_buffer = u1_rx,
+//   		.hold_write_cb = hold_set_callback,
+//   		.coil_write_cb = coil_set_callback,
 		
-//  		.coil_map = mb_m_coil_map,
-//  		.hold_map = mb_m_hold_map,
+//   		.coil_map = mb_m_coil_map,
+//   		.hold_map = mb_m_hold_map,
 		
-//  		.timeout = 1000,
-//  	}
-//  };
+//   		.timeout = 1000,
+//   	}
+//   };
 
 //获取系统tick数 主要用来作超时判断
 static uint32_t mb_get_tick(void)
 {
-    // test code
+
     // return HAL_GetTick();
     return 0;
 }
