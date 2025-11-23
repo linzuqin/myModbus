@@ -551,24 +551,24 @@ void mb_m_poll(void)
     uint16_t j = 0;
     for(i = 0;i < MB_MASTER_NUM;i ++)
     {
-        for(j = 0 ; j < MB_M_COIL_SIZE ; j ++ )
+        for(j = 0 ; j < mb_master_devs[i].coil_read_size ; j ++ )
         {
-            if(mb_master_devs[i].coil_map->setFlag == 1)
+            if(mb_master_devs[i].coil_map[j].setFlag == 1)
             {
-                if(mb_m_coil_set(&mb_master_devs[i] , j , mb_master_devs[i].coil_map->value) == MB_OK)
+                if(mb_m_coil_set(&mb_master_devs[i] , j + mb_master_devs[i].coil_start_addr , mb_master_devs[i].coil_map[j].value) == MB_OK)
                 {
-                    mb_master_devs[i].coil_map->setFlag = 0;
+                    mb_master_devs[i].coil_map[j].setFlag = 0;
                 }
             }
         }
 
         for(j = 0 ; j < MB_M_HOLD_SIZE ; j ++ )
         {
-            if(mb_master_devs[i].hold_map->setFlag == 1)
+            if(mb_master_devs[i].hold_map[j].setFlag == 1)
             {
-                if(mb_m_hold_set(&mb_master_devs[i] , j , mb_master_devs[i].hold_map->value) == MB_OK)
+                if(mb_m_hold_set(&mb_master_devs[i] , j + mb_master_devs[i].hold_start_addr , mb_master_devs[i].hold_map[j].value) == MB_OK)
                 {
-                    mb_master_devs[i].hold_map->setFlag = 0;
+                    mb_master_devs[i].hold_map[j].setFlag = 0;
                 }
             }
         }
