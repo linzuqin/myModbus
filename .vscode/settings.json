@@ -7,6 +7,7 @@
         "mb_slave.h": "c",
         "mb.h": "c",
         "mb_check.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "mb_map.h": "c"
     }
 }

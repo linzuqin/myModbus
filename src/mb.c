@@ -74,9 +74,8 @@ uint16_t usMBCRC16( uint8_t * pucFrame, uint16_t usLen )
 }
 
 //modbus数据处理 主要负责crc校验 地址匹配
-mb_err_t mb_data_get(void *dev ,uint8_t *data_buf , uint16_t data_len)
+mb_err_t mb_data_get(mb_dev_t *mb_devs ,uint8_t *data_buf , uint16_t data_len)
 {
-    mb_dev_t *mb_devs = dev;
     uint16_t crc_cal = usMBCRC16(data_buf , data_len - 2);//计算CRC
     uint16_t crc_recv = (uint16_t)((data_buf[data_len-1] << 8) | (data_buf[data_len-2] ));//接收的CRC
     if(crc_cal != crc_recv)//保证CRC正确
@@ -94,9 +93,30 @@ mb_err_t mb_data_get(void *dev ,uint8_t *data_buf , uint16_t data_len)
         {
             //地址匹配成功，开始处理数据
             mb_devs[i].rx_size = data_len;
-            mb_devs[i].rx_count ++;
+            memcpy(mb_devs[i].rx_buffer , data_buf , data_len);
             return MB_OK;
         }
     }
     return MB_ERR_ADDR;//地址不匹配
+}
+
+
+//获取系统tick数 主要用来作超时判断
+uint32_t mb_get_tick(void)
+{
+
+    // return HAL_GetTick();
+    return 0;
+}
+
+void mb_clean(mb_dev_t *dev)
+{
+    if(dev != NULL)
+    {
+        dev->rx_size = 0;
+        dev->tx_size = 0;
+        memset(dev->rx_buffer , 0 , MB_MAX_SIZE);
+        memset(dev->tx_buffer , 0 , MB_MAX_SIZE);
+        dev->mb_status = MB_IDLE;
+    }
 }

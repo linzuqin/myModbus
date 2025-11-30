@@ -2,7 +2,7 @@
  * @Description:定义了与modbus设备相关的参数
  * @Author: linzuqin
  * @Date: 2025-11-10 16:20:49
- * @LastEditTime: 2025-11-19 22:58:29
+ * @LastEditTime: 2025-11-27 15:27:37
  * @LastEditors: linzuqin
  */
 #ifndef _MB_H_
@@ -16,7 +16,7 @@
 #define MB_SLAVE_NUM        1
 #define MB_MASTER_NUM        1
 
-
+#define MAX_ERROR_COUNT    10
 // 错误码定义
 #define MB_EXCEPTION_ILLEGAL_FUNCTION      0x01
 #define MB_EXCEPTION_ILLEGAL_DATA_ADDRESS  0x02
@@ -79,11 +79,20 @@ typedef struct
     uint8_t setFlag;
 }mb_m_map;
 
+typedef enum
+{
+    MB_IDLE = 0,
+    MB_PARSE,//从机接收到modbus设备信息 正在解析
+    MB_RESP,//从机的应答
+    MB_GET,//主机的读取操作
+    MB_SET,//主机的写入操作
+    MB_ERROR,//modbus设备通信发生错误
+    MB_OFFLINE,
+}mb_status_t;
+
 typedef struct
 {
-    const char *identifier;
     uint8_t addr;
-    mb_dev_type_t type;
     
     // 寄存器存储
     uint8_t *mb_coil_reg;           // 线圈寄存器 (位操作)
@@ -105,13 +114,14 @@ typedef struct
     uint16_t input_read_size;
 
     // 统计信息
-    uint32_t rx_count;
-    uint32_t tx_count;
     uint32_t error_count;
+    uint8_t devOnline;//设备在线情况
 
-    uint16_t timeout;
-    uint8_t *rx_buffer;
+    uint8_t rx_buffer[MB_MAX_SIZE];
+    uint8_t tx_buffer[MB_MAX_SIZE];
     uint16_t rx_size;
+    uint16_t tx_size;
+
 
     void (*send_callback)(uint8_t *buf, uint16_t len);
   
@@ -119,13 +129,23 @@ typedef struct
     void (*coil_write_cb)(uint16_t addr, uint16_t val);
     void (*hold_write_cb)(uint16_t addr, uint16_t val);
 
-    //主机映射表 用于数据的写入
+    // 主机映射表 用于数据的写入
     mb_m_map *coil_map;
     mb_m_map *hold_map;
+
+    mb_func_code_t index_func_code;//当前操作的功能码
+    mb_status_t mb_status;//modbus设备当前状态
+    //时间相关的变量
+    uint32_t last_poll_time;//上次轮询时间 从机:记录上一次上位机(主机)下发指令的时间 主机:记录上一次对对于从机设备下发指令的时间
+    uint32_t poll_interval;//轮询间隔,单位:ms 从机:若当前tick数与上次轮询时间差值大于轮询间隔 则判断设备离线 主机:每隔轮询间隔时间对从机设备进行数据读取 
+
+
 } mb_dev_t;
 
 uint16_t usMBCRC16( uint8_t * pucFrame, uint16_t usLen );
-mb_err_t mb_data_get(void *dev ,uint8_t *data_buf , uint16_t data_len);
+uint32_t mb_get_tick(void);
+void mb_clean(mb_dev_t *dev);
+mb_err_t mb_data_get(mb_dev_t *mb_devs ,uint8_t *data_buf , uint16_t data_len);
 
 
 #endif /* _MB_H_ */
