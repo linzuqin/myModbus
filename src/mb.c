@@ -2,7 +2,7 @@
  * @Description: 
  * @Author: linzuqin
  * @Date: 2025-11-21 15:44:23
- * @LastEditTime: 2025-11-21 16:01:11
+ * @LastEditTime: 2025-12-04 22:11:19
  * @LastEditors: linzuqin
  */
 #include "mb.h"
@@ -87,7 +87,9 @@ mb_err_t mb_data_get(mb_dev_t *mb_devs ,uint8_t *data_buf , uint16_t data_len)
         return MB_ERR_SIZE;
     }
 
-    for(uint8_t i = 0;i<MB_SLAVE_NUM;i++)
+    uint16_t dev_num = mb_devs->dev_type == MB_MASTER?MB_MASTER_NUM:MB_SLAVE_NUM;
+
+    for(uint8_t i = 0;i<dev_num;i++)
     {
         if(data_buf[MB_ADDR_BIT] == mb_devs[i].addr)//地址匹配
         {

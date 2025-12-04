@@ -40,35 +40,37 @@ static void coil_set_callback(uint16_t addr, uint16_t val)
 //   以下为默认配置 后续添加设备可以按照此参数配置
 mb_dev_t mb_master_devs[MB_MASTER_NUM]	= 
 {
-[0] = {
-    .addr = 1,
-    .mb_coil_reg = mb_m_coil_buf,
-    .mb_disc_reg = mb_m_disc_buf,
-    .mb_hold_reg = mb_m_hold_buf,
-    .mb_input_reg = mb_m_input_buf,
-    
-    .coil_start_addr = 0,//线圈的起始地址
-    .coil_read_size = sizeof(mb_m_coil_buf),//线圈的数量
+    [0] = {
+        .addr = 1,
+        .dev_type = MB_MASTER,
+
+        .mb_coil_reg = mb_m_coil_buf,
+        .mb_disc_reg = mb_m_disc_buf,
+        .mb_hold_reg = mb_m_hold_buf,
+        .mb_input_reg = mb_m_input_buf,
         
-    .disc_start_addr = 0,//离散的起始地址
-    .disc_read_size = sizeof(mb_m_disc_buf),//离散的数量
+        .coil_start_addr = 0,//线圈的起始地址
+        .coil_read_size = sizeof(mb_m_coil_buf),//线圈的数量
+            
+        .disc_start_addr = 0,//离散的起始地址
+        .disc_read_size = sizeof(mb_m_disc_buf),//离散的数量
+            
+        .hold_start_addr = 0,
+        .hold_read_size = sizeof(mb_m_hold_buf)/2,//mb_s_hold_buf是uint16_t类型的 sizeof算出来的长度会是实际长度的2倍
+            
+        .input_start_addr = 0,
+        .input_read_size = sizeof(mb_m_input_buf)/2,//mb_s_hold_buf是uint16_t类型的 sizeof算出来的长度会是实际长度的2倍
+            
+        .send_callback = mb_m_send,//发送函数
+        .hold_write_cb = hold_set_callback,//保持寄存器设置回调函数
+        .coil_write_cb = coil_set_callback,//线圈寄存器设置回调函数
         
-    .hold_start_addr = 0,
-    .hold_read_size = sizeof(mb_m_hold_buf)/2,//mb_s_hold_buf是uint16_t类型的 sizeof算出来的长度会是实际长度的2倍
+        .coil_map = mb_m_coil_map,//主机线圈映射表
+        .hold_map = mb_m_hold_map,//主机保持映射表
         
-    .input_start_addr = 0,
-    .input_read_size = sizeof(mb_m_input_buf)/2,//mb_s_hold_buf是uint16_t类型的 sizeof算出来的长度会是实际长度的2倍
-        
-    .send_callback = mb_m_send,//发送函数
-    .hold_write_cb = hold_set_callback,//保持寄存器设置回调函数
-    .coil_write_cb = coil_set_callback,//线圈寄存器设置回调函数
-    
-    .coil_map = mb_m_coil_map,//主机线圈映射表
-    .hold_map = mb_m_hold_map,//主机保持映射表
-    
-    .poll_interval = 100,//轮询时间100ms
-		.index_func_code = MB_FUNC_READ_COILS,
-}
+        .poll_interval = 100,//轮询时间100ms
+        .index_func_code = MB_FUNC_READ_COILS,
+    }
 };
 
 

@@ -93,7 +93,7 @@ typedef enum
 typedef struct
 {
     uint8_t addr;
-    
+    mb_dev_type_t dev_type;         //设备类型
     // 寄存器存储
     uint8_t *mb_coil_reg;           // 线圈寄存器 (位操作)
     uint8_t *mb_disc_reg;           // 离散量寄存器 (位操作)

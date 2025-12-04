@@ -26,34 +26,35 @@ static void coil_set_callback(uint16_t addr, uint16_t val)
 
 // mb_dev_t mb_slave_devs[MB_SLAVE_NUM];
 // test code for one slave device
-  mb_dev_t mb_slave_devs[MB_SLAVE_NUM] =
-  {
-  	[0] = {
-  		.addr = 1,
-  		.mb_coil_reg = mb_s_coil_buf,
-  		.mb_disc_reg = mb_s_disc_buf,
-  		.mb_hold_reg = mb_s_hold_buf,
-  		.mb_input_reg = mb_s_input_buf,
+mb_dev_t mb_slave_devs[MB_SLAVE_NUM] =
+{
+    [0] = {
+        .addr = 1,
+        .dev_type = MB_SLAVE,
 
-  		.coil_start_addr = 0,
-  		.coil_read_size = sizeof(mb_s_coil_buf),
+        .mb_coil_reg = mb_s_coil_buf,
+        .mb_disc_reg = mb_s_disc_buf,
+        .mb_hold_reg = mb_s_hold_buf,
+        .mb_input_reg = mb_s_input_buf,
 
-  		.disc_start_addr = 0,
-  		.disc_read_size = sizeof(mb_s_disc_buf),
+        .coil_start_addr = 0,
+        .coil_read_size = sizeof(mb_s_coil_buf),
 
-  		.hold_start_addr = 0,
-  		.hold_read_size = sizeof(mb_s_hold_buf)/2,//mb_s_hold_buf是uint16_t类型的 sizeof算出来的长度会是实际长度的2倍
+        .disc_start_addr = 0,
+        .disc_read_size = sizeof(mb_s_disc_buf),
 
-  		.input_start_addr = 0,
-  		.input_read_size = sizeof(mb_s_input_buf)/2,//mb_s_hold_buf是uint16_t类型的 sizeof算出来的长度会是实际长度的2倍
+        .hold_start_addr = 0,
+        .hold_read_size = sizeof(mb_s_hold_buf)/2,//mb_s_hold_buf是uint16_t类型的 sizeof算出来的长度会是实际长度的2倍
 
-  		.send_callback = mb_s_send,
-  		.hold_write_cb = hold_set_callback,
-  		.coil_write_cb = coil_set_callback,
-  		.poll_interval = 100,//轮询时间100ms
+        .input_start_addr = 0,
+        .input_read_size = sizeof(mb_s_input_buf)/2,//mb_s_hold_buf是uint16_t类型的 sizeof算出来的长度会是实际长度的2倍
 
-  	}
-  };
+        .send_callback = mb_s_send,
+        .hold_write_cb = hold_set_callback,
+        .coil_write_cb = coil_set_callback,
+        .poll_interval = 100,//轮询时间100ms
+    }
+};
 
 mb_err_code_t mb_slave_check(mb_dev_t *mb_dev, mb_func_code_t func_code, uint16_t start_addr, uint16_t quantity)
 {
