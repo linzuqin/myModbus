@@ -30,6 +30,7 @@ mb_dev_t mb_slave_devs[MB_SLAVE_NUM] =
 {
     [0] = {
         .addr = 1,
+        .uartid = 1,
         .dev_type = MB_SLAVE,
 
         .mb_coil_reg = mb_s_coil_buf,
@@ -411,12 +412,23 @@ static mb_err_t mb_s_holds_parse(mb_dev_t *mb_dev, uint16_t start_addr, uint8_t 
 static mb_err_t mb_s_parse(mb_dev_t *mb_dev)
 {
     uint8_t *tx_buf = mb_dev->tx_buffer;
-    /* CRC及地址在mb_s_data_get函数中已校验过，这里不再重复 */
-    if (mb_dev->rx_size < MB_MIN_SIZE)
+
+    /*先进行crc校验*/
+    uint16_t crc_cal = usMBCRC16(mb_dev->rx_buffer , mb_dev->rx_size - 2);//计算CRC
+    uint16_t crc_recv = (uint16_t)((mb_dev->rx_buffer[mb_dev->rx_size-1] << 8) | (mb_dev->rx_buffer[mb_dev->rx_size-2] ));//接收的CRC
+    if(crc_cal != crc_recv)//CRC错误
     {
         mb_dev->error_count++;
         mb_dev->rx_size = 0;
-        return MB_ERR_SIZE;
+        return MB_ERR_CRC;
+    }
+
+    /*再进行设备地址校验*/
+    if(mb_dev->rx_buffer[MB_ADDR_BIT] != mb_dev->addr)
+    {
+        mb_dev->error_count++;
+        mb_dev->rx_size = 0;
+        return MB_ERR_ADDR;
     }
 
     mb_func_code_t function_code = mb_dev->rx_buffer[MB_FUNC_BIT];

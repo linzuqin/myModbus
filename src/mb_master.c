@@ -1,5 +1,4 @@
 #include "mb_master.h"
-#include "usart.h"
 
 //modbus主机专属的全局变量,专门用来存放需要下发数据的数组
 static mb_m_map mb_m_coil_map[MB_M_COIL_SIZE];
@@ -42,6 +41,7 @@ mb_dev_t mb_master_devs[MB_MASTER_NUM]	=
 {
     [0] = {
         .addr = 1,
+        .uartid = 1,
         .dev_type = MB_MASTER,
 
         .mb_coil_reg = mb_m_coil_buf,
@@ -266,12 +266,25 @@ static mb_err_t mb_m_check_ack(mb_dev_t *mb_dev)
     {
         return MB_ERR_TIMEOUT;
     }
-
-    // 最小长度检查
-    if (mb_dev->rx_size < MB_MIN_SIZE) {
-        return MB_ERR_SIZE;
-    }
     
+    /*先进行crc校验*/
+    uint16_t crc_cal = usMBCRC16(mb_dev->rx_buffer , mb_dev->rx_size - 2);//计算CRC
+    uint16_t crc_recv = (uint16_t)((mb_dev->rx_buffer[mb_dev->rx_size-1] << 8) | (mb_dev->rx_buffer[mb_dev->rx_size-2] ));//接收的CRC
+    if(crc_cal != crc_recv)//CRC错误
+    {
+        mb_dev->error_count++;
+        mb_dev->rx_size = 0;
+        return MB_ERR_CRC;
+    }
+
+    /*再进行设备地址校验*/
+    if(mb_dev->rx_buffer[MB_ADDR_BIT] != mb_dev->addr)
+    {
+        mb_dev->error_count++;
+        mb_dev->rx_size = 0;
+        return MB_ERR_ADDR;
+    }
+
     if (mb_dev->rx_buffer[1] & 0x80) {
         // 解析异常码
         if(mb_dev->rx_size >= 3) {

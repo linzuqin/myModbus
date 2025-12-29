@@ -93,6 +93,7 @@ typedef enum
 typedef struct
 {
     uint8_t addr;
+    uint8_t uartid;                 //modbus设备对应的串口id
     mb_dev_type_t dev_type;         //设备类型
     // 寄存器存储
     uint8_t *mb_coil_reg;           // 线圈寄存器 (位操作)
@@ -145,7 +146,7 @@ typedef struct
 uint16_t usMBCRC16( uint8_t * pucFrame, uint16_t usLen );
 uint32_t mb_get_tick(void);
 void mb_clean(mb_dev_t *dev);
-mb_err_t mb_data_get(mb_dev_t *mb_devs ,uint8_t *data_buf , uint16_t data_len);
+mb_err_t mb_data_get(mb_dev_t *mb_devs , uint8_t uart_id , uint8_t *data_buf , uint16_t data_len);
 
 
 #endif /* _MB_H_ */

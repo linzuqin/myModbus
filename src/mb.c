@@ -2,7 +2,7 @@
  * @Description: 
  * @Author: linzuqin
  * @Date: 2025-11-21 15:44:23
- * @LastEditTime: 2025-12-04 22:11:19
+ * @LastEditTime: 2025-12-29 11:25:40
  * @LastEditors: linzuqin
  */
 #include "mb.h"
@@ -74,15 +74,10 @@ uint16_t usMBCRC16( uint8_t * pucFrame, uint16_t usLen )
 }
 
 //modbus数据处理 主要负责crc校验 地址匹配
-mb_err_t mb_data_get(mb_dev_t *mb_devs ,uint8_t *data_buf , uint16_t data_len)
+mb_err_t mb_data_get(mb_dev_t *mb_devs , uint8_t uart_id , uint8_t *data_buf , uint16_t data_len)
 {
-    uint16_t crc_cal = usMBCRC16(data_buf , data_len - 2);//计算CRC
-    uint16_t crc_recv = (uint16_t)((data_buf[data_len-1] << 8) | (data_buf[data_len-2] ));//接收的CRC
-    if(crc_cal != crc_recv)//保证CRC正确
-    {
-        return MB_ERR_CRC;
-    }
-    if(data_len == 0 || data_len > MB_MAX_SIZE)//保证传入参数正确
+    /*先对数据长度进行校验*/
+    if(data_len == 0 || data_len > MB_MAX_SIZE || data_len < MB_MIN_SIZE)//保证传入参数正确
     {
         return MB_ERR_SIZE;
     }
@@ -91,9 +86,8 @@ mb_err_t mb_data_get(mb_dev_t *mb_devs ,uint8_t *data_buf , uint16_t data_len)
 
     for(uint8_t i = 0;i<dev_num;i++)
     {
-        if(data_buf[MB_ADDR_BIT] == mb_devs[i].addr)//地址匹配
+        if(uart_id == mb_devs[i].uartid)//串口id匹配
         {
-            //地址匹配成功，开始处理数据
             mb_devs[i].rx_size = data_len;
             memcpy(mb_devs[i].rx_buffer , data_buf , data_len);
             return MB_OK;
